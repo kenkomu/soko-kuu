@@ -1,0 +1,31 @@
+# /etc/systemd/system/sokokuu-runner.service
+[Unit]
+Description=Soko Kuu runner (relayer + API)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=sokokuu
+Group=sokokuu
+# Secrets and settings live outside the repo: /etc/sokokuu/runner.env (mode 600, owner root or sokokuu)
+EnvironmentFile=/etc/sokokuu/runner.env
+ExecStart=/opt/sokokuu/bin/sokokuu-runner
+# /var/lib/sokokuu: runner-only state (DATA_DIR), created and owned by the service user, writable despite ProtectSystem
+StateDirectory=sokokuu
+StateDirectoryMode=0700
+Restart=on-failure
+RestartSec=3
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6
+CapabilityBoundingSet=
+TimeoutStopSec=15
+LimitNOFILE=4096
+
+[Install]
+WantedBy=multi-user.target

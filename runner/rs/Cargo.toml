@@ -1,0 +1,37 @@
+[package]
+name = "sokokuu-runner"
+version = "0.2.0"
+edition = "2021"
+description = "Soko Kuu relayer implementing docs/API.md (axum). Rules come from the econ crate."
+
+[dependencies]
+econ = { path = "../../econ", features = ["borsh"] }
+borsh = "1"
+axum = "0.8"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "sync", "time", "signal"] }
+tower-http = { version = "0.6", features = ["cors", "set-header", "compression-gzip"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+ed25519-dalek = "2"
+bs58 = "0.5"
+base64 = "0.22"
+sha2 = "0.10"
+rand = "0.8"
+async-trait = "0.1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+near-jsonrpc-client = { version = "0.23.0", optional = true }
+near-crypto = { version = "0.38.0", optional = true }
+near-primitives = { version = "0.38.0", optional = true }
+near-jsonrpc-primitives = { version = "0.38.0", optional = true }
+near-account-id = { version = "3.0.0", optional = true }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "sync", "time"] }
+
+[[bin]]
+name = "sokokuu-runner"
+path = "src/main.rs"
+
+[features]
+default = ["testnet"]
+testnet = ["dep:near-jsonrpc-client", "dep:near-crypto", "dep:near-primitives", "dep:near-jsonrpc-primitives", "dep:near-account-id"]

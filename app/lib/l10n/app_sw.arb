@@ -1,0 +1,17 @@
+{
+  "@@locale": "sw",
+  "error_BAD_SIG": "Hatukuweza kuthibitisha ni wewe. Onyesha upya ujaribu tena.",
+  "error_BAD_NONCE": "Umepitwa na soko. Vuta chini kuonyesha upya, kisha jaribu tena.",
+  "error_EXPIRED": "Imechukua muda mrefu. Tafadhali jaribu tena.",
+  "error_NOT_ENOUGH_PTS": "Pointi zako hazitoshi. Jaribu kiasi kidogo.",
+  "error_NOT_ENOUGH_STOCK": "Mzigo hautoshi. Jaribu kiasi kidogo au duka lingine.",
+  "error_CREDIT_DENIED": "Deni limekataliwa. Lipa ulichodaiwa kwanza, kisha uombe tena.",
+  "error_NOT_MEMBER": "Jiunge na chama kwanza.",
+  "error_ALREADY_VOTED": "Umeshapiga kura kwa mzigo huu.",
+  "error_WRONG_PHASE": "Soko hufanya biashara adhuhuri tu.",
+  "error_RATE_LIMITED": "Polepole kidogo, kisha jaribu tena.",
+  "error_PRICE_MOVED": "Bei imebadilika ulipokuwa unaamua. Angalia bei mpya kisha ujaribu tena.",
+  "error_FORBIDDEN": "Hatua hiyo hairuhusiwi kwa akaunti yako.",
+  "error_INTERNAL": "Kuna hitilafu upande wetu. Jaribu tena baada ya muda.",
+  "error_OFFLINE": "Soko halipatikani. Angalia mtandao wako au tumia hali ya majaribio."
+}

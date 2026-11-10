@@ -1,0 +1,20 @@
+[package]
+name = "sokokuu-sandbox-tests"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# Separate crate so the heavy near-workspaces tree never touches the contract's lockfile.
+# Needs: the wasm built first with RUSTFLAGS="--cfg near" (see ../NOTES.md; WASM=<path> overrides which file is tested).
+# SIGNER_DIR is REQUIRED: a folder holding sign.mjs (reads [{seedHex,template}] on stdin, prints [{pubkey,sig}]) and
+# node_modules with @near-js/crypto and bs58. It is not committed; signatures must come from near-api-js, not Rust.
+[dependencies]
+
+[dev-dependencies]
+near-workspaces = "0.22"
+tokio = { version = "1", features = ["full"] }
+serde_json = "1"
+econ = { path = "../../econ", features = ["borsh"] }
+borsh = "1"
+sha2 = "0.10"
+base64 = "0.22"

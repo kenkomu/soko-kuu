@@ -1,0 +1,17 @@
+{
+  "@@locale": "en",
+  "error_BAD_SIG": "We could not confirm it was you. Refresh and try again.",
+  "error_BAD_NONCE": "Out of step with the market. Pull down to refresh and try again.",
+  "error_EXPIRED": "That took too long. Please try again.",
+  "error_NOT_ENOUGH_PTS": "You do not have enough pts for that. Try a smaller amount.",
+  "error_NOT_ENOUGH_STOCK": "Not enough stock. Try a smaller amount or another stall.",
+  "error_CREDIT_DENIED": "Credit was refused. Repay what you owe first, then ask again.",
+  "error_NOT_MEMBER": "Join a chama first.",
+  "error_ALREADY_VOTED": "You already voted on this lot.",
+  "error_WRONG_PHASE": "The market trades at midday only.",
+  "error_RATE_LIMITED": "Slow down a little, then try again.",
+  "error_PRICE_MOVED": "The price moved while you were deciding. Check the new price and try again.",
+  "error_FORBIDDEN": "That action is not allowed for your account.",
+  "error_INTERNAL": "Something went wrong on our side. Try again in a moment.",
+  "error_OFFLINE": "Cannot reach the market. Check your connection or use demo mode."
+}

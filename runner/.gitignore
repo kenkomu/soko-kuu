@@ -1,0 +1,12 @@
+# secrets and build output: never commit
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.secret
+*credentials*.json
+*.testnet.json
+secrets/
+rs/target/
+data/

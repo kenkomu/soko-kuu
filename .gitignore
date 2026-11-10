@@ -1,0 +1,9 @@
+target/
+build/
+.dart_tool/
+.idea/
+*.key
+*.pem
+.env
+secrets/
+node_modules/
