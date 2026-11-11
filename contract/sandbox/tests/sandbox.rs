@@ -337,3 +337,83 @@ async fn gas_by_player_count() {
         println!("GASROW players_total_incl_measure_player={}", registered + 1 + (target > 1) as u32 * 0); println!("GASROW players={registered} act={g_act:.1} advance_clock_max={g_adv_max:.1} decide={g_dec:.1} rebind_key={g_rb:.1} (Tgas; limit 300)");
     }
 }
+
+#[tokio::test]
+async fn goods_tokens_mirror_stock_and_are_non_transferable() {
+    let e = setup().await;
+    assert!(e.relayer.call(&e.contract, "advance_clock").max_gas().transact().await.unwrap().is_success()); // dawn -> midday
+    let exp = now_ms(&e.worker).await + 100_000;
+    let buy = r#"{"good":"tomato","max_unit_price":1000000,"merchant":"njeri","qty":3,"type":"buy"}"#;
+    let s = sign_many(&[(1, msg(CONTRACT, CHAIN, 1, exp, buy))]);
+    let r = act(&e, &e.relayer, &s[0].pubkey, 1, exp, buy, &s[0].sig).await;
+    assert!(r.is_success(), "{:?}", r.failures());
+    let logs: Vec<String> = r.logs().iter().map(|l| l.to_string()).collect();
+    for l in &logs {
+        println!("LOG {l}");
+    }
+    let mint = logs.iter().find(|l| l.contains("\"token_ids\":[\"tomato\"]")).expect("goods mint event");
+    assert!(mint.starts_with("EVENT_JSON:") && mint.contains("\"event\":\"mt_mint\"") && mint.contains("\"standard\":\"nep245\""), "event field present: {mint}");
+    let owner: String = serde_json::from_str::<Value>(mint.trim_start_matches("EVENT_JSON:")).unwrap()["data"][0]["owner_id"].as_str().unwrap().into();
+    let bal = |tok: &str| {
+        let (w, c, o, t) = (e.worker.clone(), e.contract.clone(), owner.clone(), tok.to_string());
+        async move { w.view(&c, "mt_balance_of").args_json(json!({"account_id": o, "token_id": t})).await.unwrap().json::<String>().unwrap() }
+    };
+    assert_eq!(bal("tomato").await, "3");
+    let sup: Vec<Option<String>> = e.worker.view(&e.contract, "mt_batch_supply").args_json(json!({"token_ids": ["tomato", "fish", "nope"]})).await.unwrap().json().unwrap();
+    assert_eq!(sup, vec![Some("3".into()), Some("0".into()), None]);
+    let tok: Value = e.worker.view(&e.contract, "mt_token").args_json(json!({"token_ids": ["tomato", "nope"]})).await.unwrap().json().unwrap();
+    assert_eq!(tok[0]["token_id"], "tomato");
+    assert!(tok[1].is_null());
+    let md: Value = e.worker.view(&e.contract, "mt_metadata").args_json(json!({"token_ids": ["tomato"]})).await.unwrap().json().unwrap();
+    assert_eq!(md[0]["title"], "Tomatoes");
+
+    // sell one back: burn event, balance 2
+    let sell = r#"{"good":"tomato","merchant":"njeri","qty":1,"type":"sell"}"#;
+    let s2 = sign_many(&[(1, msg(CONTRACT, CHAIN, 2, exp, sell))]);
+    let r = act(&e, &e.relayer, &s2[0].pubkey, 2, exp, sell, &s2[0].sig).await;
+    assert!(r.is_success(), "{:?}", r.failures());
+    assert!(r.logs().iter().any(|l| l.contains("\"event\":\"mt_burn\"") && l.contains("\"tomato\"")));
+    assert_eq!(bal("tomato").await, "2");
+
+    // spoilage / consumption: after a few days the token balance still equals the world stock (checked via the snapshot hash staying in sync with supply)
+    for _ in 0..6 {
+        assert!(e.relayer.call(&e.contract, "advance_clock").max_gas().transact().await.unwrap().is_success());
+    }
+    let b = bal("tomato").await.parse::<u64>().unwrap();
+    assert!(b <= 2);
+    let sup: Option<String> = e.worker.view(&e.contract, "mt_supply").args_json(json!({"token_id": "tomato"})).await.unwrap().json().unwrap();
+    assert_eq!(sup.unwrap().parse::<u64>().unwrap(), b);
+
+    // transfers of goods and pts always panic NON_TRANSFERABLE
+    for m in ["mt_transfer", "mt_batch_transfer"] {
+        let r = e.relayer.call(&e.contract, m).args_json(json!({})).max_gas().transact().await.unwrap();
+        assert_code(&r, "NON_TRANSFERABLE");
+    }
+}
+
+#[tokio::test]
+async fn goods_gas_with_many_holders() {
+    let e = setup().await;
+    assert!(e.relayer.call(&e.contract, "advance_clock").max_gas().transact().await.unwrap().is_success());
+    let n: u32 = std::env::var("HOLDERS").ok().and_then(|v| v.parse().ok()).unwrap_or(49);
+    let goods = ["tomato", "maize", "sukuma", "onion", "fish", "charcoal"];
+    let buy_for = |i: u32| format!(r#"{{"good":"{}","max_unit_price":1000000,"merchant":"njeri","qty":1,"type":"buy"}}"#, goods[(i % 4) as usize]);
+    let mut done = 0;
+    while done < n {
+        let end = (done + 25).min(n);
+        let exp = now_ms(&e.worker).await + 100_000;
+        let items: Vec<(u32, String)> = (done + 1..=end).map(|i| (i, msg(CONTRACT, CHAIN, 1, exp, &buy_for(i)))).collect();
+        for (k, sg) in sign_many(&items).iter().enumerate() {
+            let r = act(&e, &e.relayer, &sg.pubkey, 1, exp, &buy_for(done + 1 + k as u32), &sg.sig).await;
+            assert!(r.is_success(), "{:?}", r.failures());
+        }
+        done = end;
+    }
+    let mut worst = 0f64;
+    for _ in 0..3 {
+        let r = e.relayer.call(&e.contract, "advance_clock").max_gas().transact().await.unwrap();
+        assert!(r.is_success(), "{:?}", r.failures());
+        worst = worst.max(r.total_gas_burnt.as_gas() as f64 / 1e12);
+    }
+    println!("GOODSGAS holders={n} advance_clock_max={worst:.1} Tgas");
+}

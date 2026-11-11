@@ -30,11 +30,28 @@ pub const MAX_EXPIRY_MS: u64 = 120_000;
 pub const MIN_MARGIN_BP: u64 = 200;
 pub const MAX_MARGIN_BP: u64 = 4_000;
 
+/// advance_clock stops mirroring goods eagerly once it has used this many Tgas (limit is 300).
+pub const EAGER_SYNC_GAS_TGAS: u64 = 150;
+/// ...and after this many goods mint/burn events (NEAR caps all log text of one call at 16 KiB).
+pub const MAX_EAGER_EVENTS: usize = 40;
+/// Display names for the goods tokens (token id = econ good id).
+fn good_name(id: &str) -> &'static str {
+    match id {
+        "tomato" => "Tomatoes",
+        "maize" => "Maize",
+        "sukuma" => "Sukuma wiki",
+        "onion" => "Onions",
+        "fish" => "Fish",
+        "charcoal" => "Charcoal",
+        _ => "Item",
+    }
+}
+
 /// Rejects every transfer, including internal ones.
 pub struct DenyTransfer;
 impl Hook<Contract, Nep245Transfer<'_>> for DenyTransfer {
     fn hook<R>(_: &mut Contract, _: &Nep245Transfer<'_>, _: impl FnOnce(&mut Contract) -> R) -> R {
-        env::panic_str("NON_TRANSFERABLE: pts cannot be transferred")
+        env::panic_str("NON_TRANSFERABLE: pts and goods cannot be transferred")
     }
 }
 
@@ -152,10 +169,15 @@ impl Contract {
             if self.ids.get(&key).is_none() {
                 self.ids.insert(key, who.clone());
             }
-            self.sync_pts(&who);
+            self.sync_player(&who);
+            // A chama vote can pay out to the borrower, so mirror whoever changed; otherwise only the actor does.
+            let before = matches!(a, Action::ChamaVote { .. }).then(|| self.holdings());
             match self.world.apply(who.as_str(), &a) {
                 Ok(r) => {
-                    self.sync_pts(&who);
+                    match before {
+                        Some(b) => self.sync_changed(b, true),
+                        None => self.sync_player(&who),
+                    }
                     for line in r.ledger.iter().filter(|l| l.pts != 0) {
                         env::log_str(&format!("ledger|{}|{}", line.pts, line.cause));
                     }
@@ -178,7 +200,10 @@ impl Contract {
         if env::predecessor_account_id() != self.relayer {
             fail("FORBIDDEN", "only the relayer may advance the clock");
         }
+        let before = self.holdings();
         let r = self.world.advance().unwrap_or_else(|_| fail("INTERNAL", "advance failed"));
+        // Spoilage, consumption, loan settlement: burn/mint so token balances follow the world.
+        self.sync_changed(before, false);
         for e in r.events {
             env::log_str(&format!("event|{e}"));
         }
@@ -210,7 +235,25 @@ impl Contract {
         token_ids.iter().map(|t| Nep245Controller::balance_of(self, t, &account_id).into()).collect()
     }
     pub fn mt_supply(&self, token_id: String) -> Option<near_sdk::json_types::U128> {
-        Nep245Controller::supply(self, &token_id).map(Into::into)
+        Some(self.supply_of(&token_id)?.into())
+    }
+    pub fn mt_batch_supply(&self, token_ids: Vec<String>) -> Vec<Option<near_sdk::json_types::U128>> {
+        token_ids.iter().map(|t| self.supply_of(t).map(Into::into)).collect()
+    }
+    /// NEP-245 `mt_token`: known ids only (`pts` and the goods). `owner_id` is null (fungible-style ids).
+    pub fn mt_token(&self, token_ids: Vec<String>) -> Vec<Option<serde_json::Value>> {
+        token_ids.iter().map(|t| Self::is_token_id(t).then(|| serde_json::json!({ "token_id": t, "owner_id": null }))).collect()
+    }
+    /// NEP-245 metadata extension: contract level.
+    pub fn mt_metadata_contract(&self) -> serde_json::Value {
+        serde_json::json!({ "spec": "mt-1.0.0", "name": "Soko Kuu", "symbol": "SOKO" })
+    }
+    /// Per-token metadata for `pts` and the goods (also served under the shorter name `mt_metadata`).
+    pub fn mt_metadata_base_by_token_id(&self, token_ids: Vec<String>) -> Vec<Option<serde_json::Value>> {
+        self.metadata_for(&token_ids)
+    }
+    pub fn mt_metadata(&self, token_ids: Vec<String>) -> Vec<Option<serde_json::Value>> {
+        self.metadata_for(&token_ids)
     }
 
     /// Device recovery: move the player behind `old_pubkey` to `new_pubkey`. Relayer only.
@@ -260,10 +303,10 @@ impl Contract {
 
     /// pts can never be transferred. These exist only to answer NEP-245 callers with a clear error.
     pub fn mt_transfer(&mut self) {
-        fail("NON_TRANSFERABLE", "pts cannot be transferred");
+        fail("NON_TRANSFERABLE", "pts and goods cannot be transferred");
     }
     pub fn mt_batch_transfer(&mut self) {
-        fail("NON_TRANSFERABLE", "pts cannot be transferred");
+        fail("NON_TRANSFERABLE", "pts and goods cannot be transferred");
     }
 
     // ---- views ----
@@ -323,6 +366,99 @@ impl Contract {
     fn assert_not_paused(&self) {
         if self.paused {
             fail("FORBIDDEN", "contract is paused");
+        }
+    }
+
+    fn is_token_id(t: &str) -> bool {
+        t == PTS || econ::pricing::good(t).is_some()
+    }
+
+    /// Supply of a known token id; 0 before its first mint (goods tokens are created lazily).
+    fn supply_of(&self, t: &str) -> Option<u128> {
+        if !Self::is_token_id(t) {
+            return None;
+        }
+        Some(Nep245Controller::supply(self, t).unwrap_or(0))
+    }
+
+    fn metadata_for(&self, token_ids: &[String]) -> Vec<Option<serde_json::Value>> {
+        token_ids
+            .iter()
+            .map(|t| {
+                Self::is_token_id(t).then(|| {
+                    let (title, desc) = if t == PTS {
+                        ("Soko pts".to_string(), "Game score. Not money; never transferable.".to_string())
+                    } else {
+                        (good_name(t).to_string(), "Market good held by a player. Not transferable; bought and sold only through the market rules.".to_string())
+                    };
+                    serde_json::json!({ "title": title, "description": desc, "transferable": false })
+                })
+            })
+            .collect()
+    }
+
+    fn mint_token(&mut self, token: &str, who: &AccountId, amount: u128, memo: &str) {
+        if !Nep245Controller::token_exists(self, token) {
+            Nep245Controller::create_token(self, token.to_string()).unwrap_or_else(|e| fail("INTERNAL", &e.to_string()));
+        }
+        Nep245Controller::mint(self, &Nep245Mint::single(token, amount, who).memo(memo))
+            .unwrap_or_else(|e| fail("INTERNAL", &e.to_string()));
+    }
+
+    fn burn_token(&mut self, token: &str, who: &AccountId, amount: u128, memo: &str) {
+        Nep245Controller::burn(self, &Nep245Burn::single(token, amount, who).memo(memo))
+            .unwrap_or_else(|_| fail("INTERNAL", "goods balance below burn"));
+    }
+
+    /// Make the player's goods token balances equal the world stock (mint or burn the difference).
+    fn sync_goods(&mut self, who: &AccountId) -> usize {
+        let mut ops = 0;
+        for g in econ::pricing::GOODS.iter() {
+            let want = self.world.players.get(who.as_str()).and_then(|p| p.stock.get(g.id)).copied().unwrap_or(0) as u128;
+            let have = Nep245Controller::balance_of(self, g.id, who);
+            if want > have {
+                self.mint_token(g.id, who, want - have, "sync");
+            } else if have > want {
+                self.burn_token(g.id, who, have - want, "sync");
+            }
+            ops += (want != have) as usize;
+        }
+        ops
+    }
+
+    fn sync_player(&mut self, who: &AccountId) {
+        self.sync_pts(who);
+        self.sync_goods(who);
+    }
+
+    /// In-memory copy of every player's (pts, stock); no storage reads.
+    fn holdings(&self) -> Vec<(String, econ::Pts, std::collections::BTreeMap<String, u32>)> {
+        self.world.players.iter().map(|(k, p)| (k.clone(), p.pts, p.stock.clone())).collect()
+    }
+
+    /// Mirror only the players whose pts or stock changed since `before` (keeps gas flat at 300 players).
+    /// With `with_pts` false only goods are mirrored (day rolls move every chama member's pts weekly; that
+    /// would cost ~1 Tgas per player, so pts heal lazily at the player's next act).
+    fn sync_changed(&mut self, before: Vec<(String, econ::Pts, std::collections::BTreeMap<String, u32>)>, with_pts: bool) {
+        let mut ops = 0;
+        for (id, pts, stock) in before {
+            let (pts_changed, stock_changed) = match self.world.players.get(&id) {
+                Some(p) => (p.pts != pts, p.stock != stock),
+                None => continue,
+            };
+            if stock_changed || (with_pts && pts_changed) {
+                // Gas guard: ~1 Tgas per changed holder. Past the budget, the rest heal at their next act.
+                // Log budget: NEAR caps total log text at 16 KiB and each NEP-245 event is ~250 bytes.
+                if !with_pts && (ops >= MAX_EAGER_EVENTS || env::used_gas() > near_sdk::Gas::from_tgas(EAGER_SYNC_GAS_TGAS)) {
+                    break;
+                }
+                if let Ok(a) = AccountId::from_str(&id) {
+                    if with_pts {
+                        self.sync_pts(&a);
+                    }
+                    ops += self.sync_goods(&a);
+                }
+            }
         }
     }
 
@@ -868,5 +1004,77 @@ mod tests {
         c.mint_pts(&a, 100, "t");
         c.burn_pts(&a, 40, "sink");
         assert_eq!(Nep245Controller::balance_of(&c, PTS, &a), 60);
+    }
+
+    fn me(k: &SigningKey) -> AccountId {
+        player_account(&k.verifying_key().to_bytes())
+    }
+    fn goods_total(c: &Contract, g: &str) -> u128 {
+        c.world.players.values().map(|p| p.stock.get(g).copied().unwrap_or(0) as u128).sum()
+    }
+
+    #[test]
+    fn buy_mints_goods_sell_burns_and_events_have_event_field() {
+        let mut c = setup(1000);
+        let k = sk();
+        to_midday(&mut c, &k);
+        near_sdk::test_utils::get_logs();
+        call(&mut c, &k, 2, 5000, r#"{"good":"tomato","max_unit_price":100000,"merchant":"njeri","qty":3,"type":"buy"}"#);
+        let logs = near_sdk::test_utils::get_logs().join("\n");
+        println!("{logs}");
+        assert!(logs.contains(r#""standard":"nep245""#) && logs.contains(r#""event":"mt_mint""#), "mint event must carry the event field");
+        assert_eq!(c.mt_balance_of(me(&k), "tomato".into()).0, 3);
+        assert_eq!(c.mt_supply("tomato".into()).unwrap().0, 3);
+        call(&mut c, &k, 3, 5000, r#"{"good":"tomato","merchant":"njeri","qty":2,"type":"sell"}"#);
+        let logs = near_sdk::test_utils::get_logs().join("\n");
+        assert!(logs.contains(r#""event":"mt_burn""#), "{logs}");
+        assert_eq!(c.mt_balance_of(me(&k), "tomato".into()).0, 1);
+        assert_eq!(c.mt_supply("tomato".into()).unwrap().0, goods_total(&c, "tomato"));
+    }
+
+    #[test]
+    fn spoilage_burns_goods_and_supply_mirrors_world() {
+        let mut c = setup(1000);
+        let k = sk();
+        to_midday(&mut c, &k);
+        call(&mut c, &k, 2, 5000, r#"{"good":"fish","max_unit_price":1000000,"merchant":"njeri","qty":2,"type":"buy"}"#);
+        as_relayer();
+        for _ in 0..6 {
+            c.advance_clock();
+        }
+        for g in ["tomato", "maize", "sukuma", "onion", "fish", "charcoal"] {
+            assert_eq!(c.mt_supply(g.into()).unwrap().0, goods_total(&c, g), "{g}");
+        }
+        let have = c.world.players[me(&k).as_str()].stock.get("fish").copied().unwrap_or(0) as u128;
+        assert!(have < 2);
+        assert_eq!(c.mt_balance_of(me(&k), "fish".into()).0, have);
+    }
+
+    #[test]
+    fn goods_cannot_be_transferred() {
+        let mut c = setup(1000);
+        let k = sk();
+        to_midday(&mut c, &k);
+        call(&mut c, &k, 2, 5000, r#"{"good":"tomato","max_unit_price":100000,"merchant":"njeri","qty":3,"type":"buy"}"#);
+        let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let t = Nep245Transfer::single(me(&k), "b.near".parse::<AccountId>().unwrap(), "tomato".to_string(), 1, None::<String>);
+            let _ = Nep245Controller::transfer(&mut c, &t);
+        }));
+        assert!(r.is_err());
+        assert_eq!(c.mt_balance_of(me(&k), "tomato".into()).0, 3);
+    }
+
+    #[test]
+    fn token_views_and_metadata() {
+        let c = setup(1000);
+        let ids: Vec<String> = ["pts", "tomato", "nope"].iter().map(|s| s.to_string()).collect();
+        let t = c.mt_token(ids.clone());
+        assert!(t[0].is_some() && t[1].is_some() && t[2].is_none());
+        let sup = c.mt_batch_supply(ids.clone());
+        assert_eq!(sup[1].unwrap().0, 0);
+        assert!(sup[2].is_none());
+        let m = c.mt_metadata(ids);
+        assert_eq!(m[1].as_ref().unwrap()["title"], "Tomatoes");
+        assert_eq!(c.mt_metadata_contract()["spec"], "mt-1.0.0");
     }
 }

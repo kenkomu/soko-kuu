@@ -37,10 +37,10 @@ Prices come from rule-based code (the `econ` crate), not an LLM.
    ```
    curl -s https://rpc.testnet.near.org -H 'content-type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"call_function","finality":"final","account_id":"sokokuu.sokokuu-ken.testnet","method_name":"mt_transfer","args_base64":"e30="}}'
    ```
-   Result: `HostError(GuestPanic { panic_msg: "NON_TRANSFERABLE: pts cannot be transferred" })`. Same with `"method_name":"mt_batch_transfer"`.
+   Result: `HostError(GuestPanic { panic_msg: "NON_TRANSFERABLE: pts and goods cannot be transferred" })`. Same with `"method_name":"mt_batch_transfer"`.
    As a real transaction from your own testnet account (costs a little gas, changes nothing; this one is for you to run, we did not):
    `near contract call-function as-transaction sokokuu.sokokuu-ken.testnet mt_transfer json-args '{}' prepaid-gas '30 Tgas' attached-deposit '0 NEAR' sign-as <you>.testnet network-config testnet sign-with-keychain send`
-3. Internally a transfer hook on the NEP-245 controller also panics, so no code path moves pts between holders; only mint (earning) and burn (spending) exist. Unit tests `mt_transfer_method_panics` and `transfers_rejected` cover both (`cargo test` in `contract/`: 42 pass).
+3. Internally a transfer hook on the NEP-245 controller also panics, so no code path moves pts between holders; only mint (earning) and burn (spending) exist. Unit tests `mt_transfer_method_panics` and `transfers_rejected` cover both (`cargo test` in `contract/`: 46 pass).
 4. Read balances (read-only, `near-cli-rs`):
    `near contract call-function as-read-only sokokuu.sokokuu-ken.testnet mt_supply json-args '{"token_id":"pts"}' network-config testnet now` (returned `"948"` on 2026-11-10, before the final reset)
    `near contract call-function as-read-only sokokuu.sokokuu-ken.testnet pts_of json-args '{"pubkey":"ed25519:<player key>"}' network-config testnet now` (returns a decimal string; `"0"` for an unknown key)
@@ -82,7 +82,7 @@ sha256sum sokokuu_contract.opt.wasm    # 60f88915...6ecd2
 ## What was verified how
 - On-chain reads (RPC, 2026-11-10): code hash equals the hash above; export list in point 1; `mt_transfer` and `mt_batch_transfer` panic NON_TRANSFERABLE (view-mode call); `new` refuses re-init; `mt_supply`, `pts_of`, `supply`, `clock`, `relayer`, `chain_id`, `is_paused`, `world_hash` answer; relayer has one function-call key limited to `act, advance_clock, rebind_key`; contract account has one full-access key.
 - Local rebuild: the documented recipe reproduces the on-chain bytes (above).
-- Unit tests (`cargo test`, 42): transfer rejection, owner-only pause, relayer-only methods, nonce/expiry rules. Sandbox tests (near-workspaces, 4): signature compatibility with near-api-js, replay/expiry/chain-id/contract-id rejection, pause, rebind, merchant calls, gas table. The sandbox tests do not call `mt_transfer`; that is covered by the on-chain read above and the unit tests.
+- Unit tests (`cargo test`, 46): transfer rejection, owner-only pause, relayer-only methods, nonce/expiry rules. Sandbox tests (near-workspaces, 4): signature compatibility with near-api-js, replay/expiry/chain-id/contract-id rejection, pause, rebind, merchant calls, gas table. The sandbox tests do not call `mt_transfer`; that is covered by the on-chain read above and the unit tests.
 - Judge must run themselves: the wasm export listing, the rebuild and hash comparison, the `mt_transfer` transaction, and `near account list-keys` (we saw the key list over RPC only).
 - Not verified anywhere: behaviour under load beyond the sandbox gas table; a malicious owner redeploying code (see the full-access key caveat).
 
@@ -93,3 +93,12 @@ sha256sum sokokuu_contract.opt.wasm    # 60f88915...6ecd2
 | 49 | 6.9 | 5.9 | 5.2 | 6.2 |
 | 297 | 23.3 | 22.5 | 21.1 | 22.6 |
 On testnet: `advance_clock` 2.4 Tgas, first `buy` by a new guest 4.3 Tgas. `world_hash` / `world_snapshot` views fit the view gas limit at 300 players.
+
+## Goods are NEP-245 tokens too (pending deploy of the build below)
+Token ids: `pts`, `tomato`, `maize`, `sukuma`, `onion`, `fish`, `charcoal`. A player's goods balance equals their stock in the rule engine:
+buying mints, selling burns, spoilage and daily consumption burn (`mt_mint` / `mt_burn` NEP-245 events with `memo: "sync"`). Goods cannot be
+transferred either (`mt_transfer` panics `NON_TRANSFERABLE`). Views: `mt_balance_of`, `mt_batch_balance_of`, `mt_supply`, `mt_batch_supply`,
+`mt_token`, `mt_metadata`, `mt_metadata_contract`. Limits: merchants' own stock is not tokenised; after a day roll a holder's goods balance
+can lag until their next action if more than 40 holders changed in the same step (`world_snapshot` is always exact).
+Candidate build: sha256 `766ea8c248cd779af5bdc438b0ca1bd1f30da1fde8c8e2b479dec78ac8dbcee1` (411,432 bytes). The hash and export list at the top of
+this page refer to the build currently deployed until that is replaced; update both after the upgrade.

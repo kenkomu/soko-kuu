@@ -6,9 +6,8 @@ No pin or hand-written NEP-245 needed. We use its Nep245Controller (mint/burn/ba
 (`DenyTransfer`) that panics, so no internal or external transfer can ever succeed. We did NOT use
 `#[derive(MultiToken)]`: it would expose real `mt_transfer`/resolve methods. Instead `mt_transfer` and
 `mt_batch_transfer` are hand-written and always panic `NON_TRANSFERABLE`; standard views `mt_balance_of`,
-`mt_batch_balance_of`, `mt_supply` are exposed. Not yet exposed: `mt_token`, `mt_metadata`, `mt_batch_supply`
-(add if a judge/indexer needs them). NEP-245 mint/burn events come from the controller.
-Only `pts` is a token id so far; goods and stakes live in the econ `World` (not mirrored as token ids yet).
+`mt_batch_balance_of`, `mt_supply` are exposed. Also exposed: `mt_token`, `mt_batch_supply`, `mt_metadata`, `mt_metadata_base_by_token_id`, `mt_metadata_contract`. NEP-245 mint/burn events come from the controller.
+Token ids: `pts` plus one per good (`tomato maize sukuma onion fish charcoal` = econ good ids). Stakes stay in the econ `World`.
 
 ## Design
 - `act` is relayer-only (predecessor == relayer), then verifies ed25519 over the exact signed string, expiry
@@ -30,7 +29,7 @@ Expect gas to grow with players; measure before deploy.
 ## Not done / risks
 - Not deployed to testnet. Wasm builds and runs in the local sandbox (see below); `overflow-checks` on in release.
 - Events are plain log lines, not NEP-297 JSON.
-- Goods are not NEP-245 ids yet.
+- Goods mirror PLAYER-held stock only; merchant stock stays in the World (not tokenised). NOT yet deployed (see Goods tokens).
 
 ## Build (IMPORTANT)
 Build the wasm with `RUSTFLAGS="--cfg near" cargo build --release --target wasm32-unknown-unknown` (or `cargo near build`).
@@ -79,3 +78,26 @@ Currently deployed wasm is the older ed98a459bf9016e6 build (385 KB). All 4 sand
 `reset.sh` deleted and recreated `sokokuu.sokokuu-ken.testnet`, deployed the snapshot-view wasm (on-chain code sha256
 60f889152edbf6acf55c924bae57cbb98d6a0be4d6ee29376f337dc77486ecd2), `new(testnet, seed 1, relayer.sokokuu-ken.testnet)`.
 World: day 0, dawn, 0 players; `world_hash` 9ffd75fef7e625cc0088f9aca605eef0 (decoded snapshot, 1,026 bytes, matches).
+
+## Goods tokens (2026-11-11, NOT deployed)
+One NEP-245 id per econ good, minted/burned to equal each player's `World` stock. Goods tokens are created lazily on first
+mint, so no `new` call and no state-layout change: it is a plain code upgrade (DEPLOY.md UPGRADE).
+- `act`: after the action the actor's pts and goods are synced (buy mints, sell burns, haggle/credit/repay follow the stock).
+  `ChamaVote` snapshots everyone's (pts, stock) in memory and syncs whoever changed (a vote can pay the borrower).
+- `advance_clock`: spoilage, daily consumption and loan settlement change stock; changed holders are synced goods-only.
+  Eager sync stops after 40 mint/burn events or 150 Tgas used (NEAR caps all log text of one call at 16 KiB: 100 holders
+  all changing once hit that limit). Skipped holders are corrected at their next `act`. So a goods balance can lag the world
+  by at most one `advance_clock` batch for a player who has not acted since; `world_snapshot` is always exact.
+- pts are still synced lazily at the player's next act (weekly chama dues move every member's pts; ~1 Tgas each if eager).
+  So `mt_balance_of(pts)` can lag the World after a day roll, as before.
+- Transfers: hook and `mt_transfer`/`mt_batch_transfer` panic `NON_TRANSFERABLE: pts and goods cannot be transferred`.
+- Events: real NEP-245 `EVENT_JSON` with the `event` field present (checked by eye on the wasm in the sandbox, issue #1680 not hit):
+  `EVENT_JSON:{"standard":"nep245","version":"1.0.0","event":"mt_mint","data":[{"owner_id":"74e6...","token_ids":["tomato"],"amounts":["3"],"memo":"sync"}]}`
+- Views: `mt_token`, `mt_batch_supply` (null for unknown ids, `"0"` for a good nobody holds), `mt_metadata` (= `mt_metadata_base_by_token_id`:
+  title, description, transferable=false), `mt_metadata_contract`.
+- New wasm: sha256 `766ea8c248cd779af5bdc438b0ca1bd1f30da1fde8c8e2b479dec78ac8dbcee1`, 411,432 bytes (target/sokokuu_contract.goods.wasm).
+  Hash was built with the recipe in JUDGES.md, but with binaryen 130 from this machine's npm; not compared to a second build yet.
+- Tests: 46 unit (42 + 4 new) and 6 sandbox (adds goods mirror/events/non-transfer and a holders gas test) pass.
+- Gas (sandbox): act 4.8/7.8/24.3 Tgas at 1/49/297 players (was 3.9/6.9/23.3); advance_clock 2.7/6.1/24.8; with 49 players all holding
+  goods and all changing, advance_clock peaks at 40.5 Tgas, with 100 holders 42.9 (capped by the event budget).
+- `sandbox/` needs `SIGNER_DIR` with `sign.mjs`; it was rebuilt this session outside the repo (seed 1..32 -> 9C6h..., matches the app key).
