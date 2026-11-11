@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/models.dart';
 import '../state/providers.dart';
+import '../state/trade_book.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -335,6 +336,7 @@ class _ReportTab extends ConsumerWidget {
               style: tt.bodySmall,
             ),
           ),
+          _BestDayCard(day: ref.watch(gameProvider).requireValue.player.day),
           SectionTitle(tr('Basket price index')),
           SokoCard(
             child: r.priceIndex.isEmpty
@@ -607,4 +609,61 @@ class _SimCardState extends ConsumerState<_SimCard> {
       ),
     );
   }
+}
+
+/// Optional, gentle: today's trading profit against yesterday and the best day.
+/// Shows only once the player has sold something. No timers, no loss framing.
+class _BestDayCard extends ConsumerWidget {
+  const _BestDayCard({required this.day});
+  final int day;
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final d = TradeBook(ref.watch(prefsProvider)).days(day);
+    if (d.best <= 0 && d.today == 0 && d.prev == null) {
+      return const SizedBox.shrink();
+    }
+    final tt = Theme.of(context).textTheme;
+    final t = context.tokens;
+    String sg(int n) => '${n > 0 ? '+' : ''}${fmt(n)} pts';
+    final beat = d.best > 0 && d.today >= d.best;
+    final goal = d.prev != null && d.prev! > 0 ? d.prev! : d.best;
+    final line = beat
+        ? _bi('Your best day so far. Hongera!', 'Siku yako bora hadi sasa. Hongera!')
+        : goal > 0
+        ? _bi('${fmt(goal - d.today > 0 ? goal - d.today : 1)} pts more to beat ${d.prev != null && d.prev! > 0 ? 'yesterday' : 'your best day'}.',
+            'Pointi ${fmt(goal - d.today > 0 ? goal - d.today : 1)} zaidi kuishinda ${d.prev != null && d.prev! > 0 ? 'jana' : 'siku yako bora'}.')
+        : _bi('Sell something above what you paid to put a good day on the board.',
+            'Uza kitu juu ya ulichonunulia uanze siku nzuri.');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionTitle(_bi('Beat yesterday', 'Shinda jana')),
+        SokoCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(child: _kv(tt, _bi('Today', 'Leo'), sg(d.today), d.today < 0 ? t.ochre : t.up)),
+                  if (d.prev != null)
+                    Expanded(child: _kv(tt, _bi('Yesterday', 'Jana'), sg(d.prev!), null)),
+                  Expanded(child: _kv(tt, _bi('Best day', 'Siku bora'), sg(d.best), null)),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(line, style: tt.bodyMedium),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _kv(TextTheme tt, String k, String v, Color? c) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(k, style: tt.bodySmall),
+      Text(v, style: tt.titleMedium?.copyWith(fontFamily: headingFont, fontWeight: FontWeight.w700, color: c, fontFeatures: tabular)),
+    ],
+  );
 }

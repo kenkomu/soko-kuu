@@ -443,6 +443,22 @@ class _SettingsSheet extends ConsumerWidget {
                 Navigator.pop(context);
               },
             ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(_bi('Sound', 'Sauti')),
+              subtitle: Text(_bi('Off by default. A soft click after a sale.',
+                  'Imezimwa kwa kawaida. Mlio mdogo baada ya kuuza.')),
+              value: ref.watch(soundProvider),
+              onChanged: (v) => ref.read(soundProvider.notifier).set(v),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(_bi('Haptics', 'Mtetemo')),
+              subtitle: Text(_bi('A small buzz when you trade.',
+                  'Mtetemo mdogo unapofanya biashara.')),
+              value: ref.watch(hapticsProvider),
+              onChanged: (v) => ref.read(hapticsProvider.notifier).set(v),
+            ),
             SegmentedButton<String>(
               segments: const [
                 ButtonSegment(value: 'en', label: Text('English')),

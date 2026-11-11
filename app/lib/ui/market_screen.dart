@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../domain/models.dart';
 import '../state/providers.dart';
 import '../state/trade_book.dart';
-import 'kit/kit.dart';
 import '../l10n.dart';
 import 'kit/feel.dart';
 import 'theme.dart';
