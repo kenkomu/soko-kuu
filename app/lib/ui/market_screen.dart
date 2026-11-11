@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../domain/models.dart';
 import '../state/providers.dart';
@@ -124,9 +125,7 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
         ), // a short list: keep every row built
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
         children: [
-          const _Tutorial(),
-          const _GoalCard(),
-          const _RadioTips(),
+          const _TopCard(),
           Text(
             tr('Points are for play only. They can\'t be cashed out.'),
             style: tt.bodySmall,
@@ -755,7 +754,8 @@ class _Shopkeeper extends StatelessWidget {
 
 /// Guided first day. Skip is always visible; it ends after the first sale.
 class _Tutorial extends ConsumerStatefulWidget {
-  const _Tutorial();
+  const _Tutorial({this.onDismiss});
+  final VoidCallback? onDismiss;
   @override
   ConsumerState<_Tutorial> createState() => _TutorialState();
 }
@@ -793,8 +793,11 @@ class _TutorialState extends ConsumerState<_Tutorial> {
                 ),
               ),
               TextButton(
-                onPressed: () =>
-                    setState(() => prefs.setBool('tut_done', true)),
+                onPressed: () {
+                  prefs.setBool('tut_done', true);
+                  setState(() {});
+                  widget.onDismiss?.call();
+                },
                 child: Text(tutorial['skip']![lang]!),
               ),
             ],
@@ -1006,7 +1009,8 @@ class _RadioTips extends ConsumerWidget {
 
 /// One small optional goal: first profit, then beat your best day.
 class _GoalCard extends ConsumerStatefulWidget {
-  const _GoalCard();
+  const _GoalCard({this.onDismiss});
+  final VoidCallback? onDismiss;
   @override
   ConsumerState<_GoalCard> createState() => _GoalCardState();
 }
@@ -1016,7 +1020,7 @@ class _GoalCardState extends ConsumerState<_GoalCard> {
   Widget build(BuildContext context) {
     final prefs = ref.watch(prefsProvider);
     final g = ref.watch(gameProvider).value;
-    if (g == null || (prefs.getBool('goal_hidden') ?? false)) {
+    if (g == null || !goalActive(prefs, g.player.day)) {
       return const SizedBox.shrink();
     }
     final book = TradeBook(prefs);
@@ -1075,11 +1079,45 @@ class _GoalCardState extends ConsumerState<_GoalCard> {
               onPressed: () {
                 prefs.setBool('goal_hidden', true);
                 setState(() {});
+                widget.onDismiss?.call();
               },
             ),
           ],
         ),
       ),
     );
+  }
+}
+
+/// True while the first-day tutorial tip is still showing.
+bool tutorialActive(SharedPreferences p) => !(p.getBool('tut_done') ?? false);
+
+/// The goal card shows until the player hides it, or until it is done: the
+/// best day is matched or beaten today.
+bool goalActive(SharedPreferences p, int day) {
+  if (p.getBool('goal_hidden') ?? false) return false;
+  final b = TradeBook(p);
+  final d = b.days(day);
+  return !(b.hadProfit && d.best > 0 && d.today >= d.best);
+}
+
+/// One info card above the prices, highest priority first: the first-day tip,
+/// then the goal, then the Radio Soko story. The rest wait their turn.
+class _TopCard extends ConsumerStatefulWidget {
+  const _TopCard();
+  @override
+  ConsumerState<_TopCard> createState() => _TopCardState();
+}
+
+class _TopCardState extends ConsumerState<_TopCard> {
+  void _again() => setState(() {});
+  @override
+  Widget build(BuildContext context) {
+    final prefs = ref.watch(prefsProvider);
+    final g = ref.watch(gameProvider).value;
+    if (g == null) return const SizedBox.shrink();
+    if (tutorialActive(prefs)) return _Tutorial(onDismiss: _again);
+    if (goalActive(prefs, g.player.day)) return _GoalCard(onDismiss: _again);
+    return const _RadioTips();
   }
 }
