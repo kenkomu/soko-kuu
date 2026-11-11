@@ -36,73 +36,42 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       if (m != null && m != p?.value?.message) toast(context, m);
     });
     return Scaffold(
-      appBar: AppBar(
-        titleSpacing: 16,
-        title: game.when(
-          data: (g) => Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            const KitengeBand(height: 10),
+            if (!game.hasValue)
+              Align(
+                alignment: Alignment.centerRight,
+                child: IconButton(
+                  tooltip: tr('Settings'),
+                  icon: const Icon(Icons.settings_outlined),
+                  onPressed: () => _settings(context),
+                ),
+              ),
+            Expanded(
+              child: AsyncBody<GameState>(
+                value: game,
+                onRetry: () => ref.invalidate(gameProvider),
+                builder: (g) => Column(
                   children: [
-                    Text(
-                      '${tr('Day {d}', {'d': g.player.day})} · ${phaseName(g.player.phase)}${_countdown(g.player.nextPhaseMs, ref.watch(healthProvider).value?.mode)}',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Num(
-                      pts(g.player.pts),
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+                    _BalanceHeader(g, onSettings: () => _settings(context)),
+                    Expanded(child: _pages[_i]),
                   ],
                 ),
               ),
-              Chip(
-                label: Text(tierName(g.player.tier)),
-                visualDensity: VisualDensity.compact,
-                backgroundColor: ochre.withValues(alpha: .3),
-              ),
-            ],
-          ),
-          loading: () => const Text('Soko Kuu'),
-          error: (_, _) => const Text('Soko Kuu'),
-        ),
-        actions: [
-          IconButton(
-            tooltip: tr('Settings'),
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () => _settings(context),
-          ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(40),
-          child: _NewsStrip(game.value?.news ?? const []),
+            ),
+          ],
         ),
       ),
-      // The demo clock button sits in its own strip under the page (not a
-      // floating button) so it never covers list content.
-      body: Column(
-        children: [
-          Expanded(
-            child: AsyncBody<GameState>(
-              value: game,
-              onRetry: () => ref.invalidate(gameProvider),
-              builder: (_) => _pages[_i],
-            ),
-          ),
-          if (game.hasValue && ref.watch(healthProvider).value?.mode == 'demo')
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-              child: _AdvanceButton(game.requireValue.player.phase),
-            ),
-        ],
-      ),
+      floatingActionButton:
+          game.hasValue && ref.watch(healthProvider).value?.mode == 'demo'
+          ? _AdvanceButton(game.requireValue.player.phase)
+          : null,
       bottomNavigationBar: NavigationBar(
+        height: 72,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         selectedIndex: _i,
         onDestinationSelected: (v) => setState(() => _i = v),
         destinations: [
@@ -163,12 +132,9 @@ class _AdvanceButton extends ConsumerWidget {
       Phase.midday => tr('Go to dusk'),
       Phase.dusk => tr('Close day'),
     };
-    return FilledButton.icon(
-      style: FilledButton.styleFrom(
-        backgroundColor: leaf,
-        foregroundColor: Colors.white,
-        minimumSize: const Size.fromHeight(48),
-      ),
+    return FloatingActionButton.extended(
+      backgroundColor: leaf,
+      foregroundColor: Colors.white,
       icon: const Icon(Icons.wb_twilight),
       label: Text(label),
       onPressed: () async {
@@ -181,63 +147,251 @@ class _AdvanceButton extends ConsumerWidget {
   }
 }
 
-/// Radio Soko: one-line strip under the app bar; tap for the feed.
-class _NewsStrip extends StatelessWidget {
+String _bi(String en, String sw) => gLang == 'sw' ? sw : en;
+
+/// Indigo balance card (purse, credit available, freshness), Radio Soko strip
+/// and the play-only line. Collapses to the purse at large text sizes.
+class _BalanceHeader extends ConsumerStatefulWidget {
+  const _BalanceHeader(this.g, {required this.onSettings});
+  final GameState g;
+  final VoidCallback onSettings;
+  @override
+  ConsumerState<_BalanceHeader> createState() => _BalanceHeaderState();
+}
+
+class _BalanceHeaderState extends ConsumerState<_BalanceHeader> {
+  DateTime _seen = DateTime.now();
+  bool? _open;
+
+  @override
+  void didUpdateWidget(covariant _BalanceHeader old) {
+    super.didUpdateWidget(old);
+    if (!identical(old.g, widget.g)) _seen = DateTime.now();
+  }
+
+  String _fresh() {
+    final m = DateTime.now().difference(_seen).inMinutes;
+    return m < 1
+        ? _bi('Updated just now', 'Imesasishwa sasa hivi')
+        : _bi('Updated $m min ago', 'Imesasishwa dakika $m zilizopita');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final g = widget.g, p = g.player;
+    final t = context.tokens;
+    final tt = Theme.of(context).textTheme;
+    final big = MediaQuery.textScalerOf(context).scale(14) / 14 > 1.3;
+    final open = _open ?? !big;
+    final mode = ref.watch(healthProvider).value?.mode;
+    final on = t.onIndigo;
+    final credit = p.creditAvailable;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      child: Column(
+        children: [
+          Material(
+            color: t.indigo,
+            borderRadius: BorderRadius.circular(18),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${tr('Day {d}', {'d': p.day})} · ${phaseName(p.phase)}${_countdown(p.nextPhaseMs, mode)}',
+                          style: tt.bodySmall?.copyWith(
+                            color: on,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      if (open || !big)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: t.ochre,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            tierName(p.tier),
+                            style: const TextStyle(
+                              color: charcoal,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      IconButton(
+                        tooltip: tr('Settings'),
+                        color: on,
+                        icon: const Icon(Icons.settings_outlined),
+                        onPressed: widget.onSettings,
+                      ),
+                    ],
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: RollingNumber(
+                        p.pts,
+                        format: (n) => formatPts(n, unit: 'pts'),
+                        style: (tt.headlineMedium ?? const TextStyle())
+                            .copyWith(
+                              color: on,
+                              fontFamily: headingFont,
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                    ),
+                  ),
+                  if (open) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8, bottom: 4),
+                      child: Text(
+                        '${credit != null ? _bi('Credit available: ${formatPts(credit)}', 'Mkopo unaopatikana: ${formatPts(credit)}') : _bi('Credit limit: ${formatPts(p.creditLimit)}', 'Kikomo cha mkopo: ${formatPts(p.creditLimit)}')} \u00B7 ${_fresh()}',
+                        style: tt.bodySmall?.copyWith(color: on),
+                      ),
+                    ),
+                  ],
+                  if (big)
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        foregroundColor: on,
+                        minimumSize: const Size(48, 48),
+                      ),
+                      onPressed: () => setState(() => _open = !open),
+                      child: Text(
+                        open
+                            ? _bi('Show less', 'Onyesha kidogo')
+                            : _bi('Show more', 'Onyesha zaidi'),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          if (open) _NewsStrip(g.news),
+          if (open)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 0, 4, 4),
+              child: Text(
+                tr('Points are for play only. They can\'t be cashed out.'),
+                style: tt.bodySmall,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Radio Soko: one line with an ochre tag; tap to read the full text.
+/// Static on purpose: no auto-scroll.
+class _NewsStrip extends StatefulWidget {
   const _NewsStrip(this.news);
   final List<NewsItem> news;
   @override
+  State<_NewsStrip> createState() => _NewsStripState();
+}
+
+class _NewsStripState extends State<_NewsStrip> {
+  bool _open = false;
+  @override
   Widget build(BuildContext context) {
+    final news = widget.news;
+    final tt = Theme.of(context).textTheme;
     final top = news.isEmpty
         ? tr('Radio Soko: no bulletins yet.')
         : newsText(news.first.kind, news.first.text);
-    return Material(
-      color: paper,
+    return Semantics(
+      button: true,
+      expanded: _open,
       child: InkWell(
-        onTap: () => showModalBottomSheet<void>(
-          context: context,
-          showDragHandle: true,
-          isScrollControlled: true,
-          builder: (_) => DraggableScrollableSheet(
-            expand: false,
-            initialChildSize: .6,
-            builder: (c, sc) => ListView(
-              controller: sc,
-              padding: const EdgeInsets.all(16),
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => setState(() => _open = !_open),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 48),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  tr('Radio Soko'),
-                  style: Theme.of(context).textTheme.titleLarge
-                      ?.copyWith(fontWeight: FontWeight.w800),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.only(top: 1),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: context.tokens.ochre,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        tr('Radio Soko'),
+                        style: const TextStyle(
+                          color: charcoal,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        top,
+                        maxLines: _open ? null : 1,
+                        overflow: _open ? null : TextOverflow.ellipsis,
+                        style: tt.bodyMedium,
+                      ),
+                    ),
+                    Icon(_open ? Icons.expand_less : Icons.expand_more),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                for (final n in news)
-                  ListTile(
-                    leading: Icon(_newsIcon(n.kind), color: terracotta),
-                    title: Text(newsText(n.kind, n.text)),
-                    subtitle: Text(tr('Day {d}', {'d': n.day})),
+                if (_open && news.length > 1)
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 160),
+                    child: ListView(
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.only(top: 6),
+                      children: [
+                        for (final n in news.skip(1))
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 3),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(
+                                  _newsIcon(n.kind),
+                                  size: 18,
+                                  color: context.tokens.muted,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    '${newsText(n.kind, n.text)} (${tr('Day {d}', {'d': n.day})})',
+                                    style: tt.bodySmall,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
               ],
             ),
-          ),
-        ),
-        child: SizedBox(
-          height: 40,
-          child: Row(
-            children: [
-              const SizedBox(width: 16),
-              const Icon(Icons.radio, size: 18, color: terracotta),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  top,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 13),
-                ),
-              ),
-              const Icon(Icons.expand_less, size: 18),
-              const SizedBox(width: 12),
-            ],
           ),
         ),
       ),

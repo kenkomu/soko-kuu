@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-
-import '../l10n.dart';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../l10n.dart';
 import '../state/providers.dart';
 import 'market_screen.dart';
 import 'theme.dart';
@@ -16,51 +14,23 @@ class StallScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final g = ref.watch(gameProvider).requireValue;
+    final tt = Theme.of(context).textTheme;
+    final muted = context.tokens.muted;
     final held = g.player.stock.entries.where((e) => e.value > 0).toList();
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
       children: [
-        const KitengeBand(),
+        const KitengeBand(radius: 5),
         SectionTitle(tr('Duka lako (your stall)')),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(tr('Pointi')),
-                      Num(
-                        pts(g.player.pts),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 18,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(tr('Reputation')),
-                      Text(
-                        tierName(g.player.tier),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 18,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+        SummaryStrip([
+          SummaryCell(
+            label: tr('Pointi'),
+            value: pts(g.player.pts),
+            semanticLabel: '${tr('Pointi')}: ${pts(g.player.pts)}',
           ),
-        ),
+          SummaryCell(label: tr('Reputation'), value: tierName(g.player.tier)),
+        ]),
+        const SizedBox(height: 8),
         if (held.isEmpty)
           EmptyState(
             tr('Your shelves are empty. Buy something at Soko to begin.'),
@@ -73,52 +43,60 @@ class StallScreen extends ConsumerWidget {
               final best = rows.isEmpty
                   ? null
                   : (rows..sort((a, b) => b.bid.compareTo(a.bid))).first;
-              return Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      GoodIcon(e.key),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${goodName(e.key)} x ${e.value}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 16,
-                              ),
+              return SokoCard(
+                padding: const EdgeInsets.all(12),
+                semanticLabel: '${goodName(e.key)}, ${e.value}',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        GoodIcon(e.key),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            goodName(e.key),
+                            style: tt.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
                             ),
-                            if (_perishable.contains(e.key))
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.hourglass_bottom,
-                                    size: 14,
-                                    color: ochre,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    tr('Spoils: about 10% lost each night'),
-                                    style: TextStyle(fontSize: 12),
-                                  ),
-                                ],
-                              ),
-                            if (best != null)
-                              Num(
-                                tr('Best bid {p} at {m}', {
-                                  'p': pts(best.bid),
-                                  'm': titleCase(best.merchant),
-                                }),
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                          ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '× ${e.value}',
+                          style: Money.baseStyle(
+                            context,
+                          ).copyWith(fontSize: 22, fontWeight: FontWeight.w700),
+                        ),
+                      ],
+                    ),
+                    if (_perishable.contains(e.key))
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          tr('Spoils: about 10% lost each night'),
+                          style: tt.bodySmall?.copyWith(color: muted),
                         ),
                       ),
-                      if (best != null)
-                        FilledButton(
+                    if (best != null) ...[
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Num(
+                          tr('Best bid {p} at {m}', {
+                            'p': pts(best.bid),
+                            'm': titleCase(best.merchant),
+                          }),
+                          style: tt.bodySmall?.copyWith(color: muted),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: FilledButton(
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size(48, 48),
+                          ),
                           onPressed: () => showModalBottomSheet<void>(
                             context: context,
                             isScrollControlled: true,
@@ -127,8 +105,9 @@ class StallScreen extends ConsumerWidget {
                           ),
                           child: Text(tr('Sell')),
                         ),
+                      ),
                     ],
-                  ),
+                  ],
                 ),
               );
             },

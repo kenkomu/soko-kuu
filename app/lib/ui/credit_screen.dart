@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 
 import '../l10n.dart';
@@ -34,6 +32,14 @@ String? creditShortfallHint({
   );
 }
 
+String _bi(String en, String swa, [Map<String, Object>? p]) {
+  var s = gLang == 'sw' ? swa : en;
+  p?.forEach((k, v) => s = s.replaceAll('{$k}', '$v'));
+  return s;
+}
+
+const _tierIds = ['mgeni', 'mfanyabiashara', 'mzoefu', 'mzee_wa_soko'];
+
 class CreditScreen extends ConsumerWidget {
   const CreditScreen({super.key});
   @override
@@ -44,57 +50,120 @@ class CreditScreen extends ConsumerWidget {
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
       children: [
         SectionTitle(tr('Deni (credit)')),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Num(
-                  tr('Credit limit {l} · owed {o}', {
-                    'l': pts(p.creditLimit),
-                    'o': pts(p.openDebt),
-                  }),
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 8),
-                LinearProgressIndicator(
-                  value: p.creditLimit == 0
-                      ? 0
-                      : (p.openDebt / p.creditLimit).clamp(0, 1).toDouble(),
-                  minHeight: 8,
-                  borderRadius: BorderRadius.circular(8),
-                  color: ochre,
-                  backgroundColor: charcoal.withValues(alpha: .1),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  tr('Reputation: {t}. Repay on time to raise your limit.', {
-                    't': tierName(p.tier),
-                  }),
-                  style: const TextStyle(fontSize: 12),
-                ),
-                const SizedBox(height: 8),
-                FilledButton.icon(
-                  icon: const Icon(Icons.add),
-                  label: Text(tr('Take goods on credit')),
-                  onPressed: () => showModalBottomSheet<void>(
-                    context: context,
-                    isScrollControlled: true,
-                    showDragHandle: true,
-                    builder: (_) => const _CreditSheet(),
-                  ),
-                ),
-              ],
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            icon: const Icon(Icons.add),
+            label: Text(tr('Take goods on credit')),
+            onPressed: () => showModalBottomSheet<void>(
+              context: context,
+              isScrollControlled: true,
+              showDragHandle: true,
+              builder: (_) => const _CreditSheet(),
             ),
           ),
         ),
-        if (p.loans.isEmpty) EmptyState(tr('No open deni. Good standing.')),
-        for (final l in p.loans) ...[
-          const SizedBox(height: 8),
-          _LoanCard(l, p.day),
-        ],
+        const SizedBox(height: 12),
+        if (p.loans.isEmpty)
+          EmptyState(tr('No open deni. Good standing.'))
+        else
+          for (final l in p.loans) ...[
+            _LoanCard(l, p.day),
+            const SizedBox(height: 12),
+          ],
+        _TierCard(p),
       ],
+    );
+  }
+}
+
+class _TierCard extends StatelessWidget {
+  const _TierCard(this.p);
+  final PlayerState p;
+  @override
+  Widget build(BuildContext context) {
+    final tt = Theme.of(context).textTheme;
+    final t = context.tokens;
+    final cur = _tierIds.indexOf(p.tier.toLowerCase());
+    final starter = cur <= 0 && p.loans.isEmpty;
+    final frac = p.creditLimit == 0
+        ? 0.0
+        : (p.openDebt / p.creditLimit).clamp(0.0, 1.0);
+    return SokoCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _bi('Your standing: {t}', 'Hadhi yako: {t}', {
+              't': tierName(p.tier),
+            }),
+            style: tt.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (var i = 0; i < _tierIds.length; i++)
+                StatusChip(
+                  tierName(_tierIds[i]),
+                  tone: i == cur ? StatusTone.good : StatusTone.neutral,
+                  icon: i == cur
+                      ? Icons.check_circle
+                      : (i < cur ? Icons.check : Icons.lock_outline),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Num(
+            _bi(
+              'Credit limit {l} · owed {o}',
+              'Kikomo cha deni {l} · unadaiwa {o}',
+              {'l': pts(p.creditLimit), 'o': pts(p.openDebt)},
+            ),
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          TweenAnimationBuilder<double>(
+            tween: Tween(end: frac),
+            duration: reduceMotion(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 500),
+            builder: (_, v, _) => ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: v,
+                minHeight: 10,
+                color: t.teal,
+                backgroundColor: t.muted.withValues(alpha: .2),
+                semanticsLabel: _bi('Credit used', 'Deni lililotumika'),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            tr('Reputation: {t}. Repay on time to raise your limit.', {
+              't': tierName(p.tier),
+            }),
+            style: tt.bodySmall,
+          ),
+          if (starter) ...[
+            const Divider(height: 24),
+            Text(
+              _bi('Starter credit', 'Deni la kuanzia'),
+              style: tt.titleSmall,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              _bi(
+                'New players start with a small credit limit. Take goods now, pay back within 5 days, and your limit grows with each tier. Take your time.',
+                'Wachezaji wapya huanza na kikomo kidogo cha deni. Chukua bidhaa, lipa ndani ya siku 5, na kikomo chako hukua kwa kila ngazi. Hakuna haraka.',
+              ),
+              style: tt.bodySmall,
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -105,70 +174,109 @@ class _LoanCard extends ConsumerWidget {
   final int day;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final tt = Theme.of(context).textTheme;
+    final t = context.tokens;
     final left = l.dueDay - day;
     final late = left <= 0;
-    final frac = (left / (l.daysTotal == 0 ? 5 : l.daysTotal)).clamp(0.0, 1.0);
-    final c = late ? ochre : leaf;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 56,
-              height: 56,
-              child: CustomPaint(
-                painter: _Ring(frac, c),
-                child: Center(
-                  child: Icon(
-                    late ? Icons.warning_amber_rounded : Icons.schedule,
-                    color: c,
-                  ),
+    final total = l.daysTotal == 0 ? 5 : l.daysTotal;
+    final frac = ((total - left) / total).clamp(0.0, 1.0);
+    return SokoCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tr('{q} {g} from {m}', {
+                        'q': l.qty,
+                        'g': goodName(l.good),
+                        'm': titleCase(l.merchant),
+                      }),
+                      style: tt.titleSmall,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      tr(
+                        l.lender == 'chama'
+                            ? '{r}% interest, from your chama'
+                            : '{r}% interest, from the trader',
+                        {'r': l.interestPct},
+                      ),
+                      style: tt.bodySmall,
+                    ),
+                  ],
                 ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    tr('{q} {g} from {m}', {
-                      'q': l.qty,
-                      'g': goodName(l.good),
-                      'm': titleCase(l.merchant),
-                    }),
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  Num(
-                    tr('Owe {p}', {'p': pts(l.owed)}),
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                  Text(
-                    tr(
-                      l.lender == 'chama'
-                          ? '{r}% interest, from your chama'
-                          : '{r}% interest, from the trader',
-                      {'r': l.interestPct},
+                    'Deni',
+                    style: tt.labelMedium?.copyWith(
+                      color: t.down,
+                      fontWeight: FontWeight.w700,
                     ),
-                    style: const TextStyle(fontSize: 12),
                   ),
-                  Text(
-                    late
-                        ? tr('Overdue: late fees are adding up')
-                        : tr('Due in {n} day(s) (day {d})', {
-                            'n': left,
-                            'd': l.dueDay,
-                          }),
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: late ? const Color(0xFF8A5A00) : charcoal,
-                    ),
+                  Money(
+                    l.owed,
+                    textAlign: TextAlign.end,
+                    style: tt.titleLarge?.copyWith(color: t.down),
                   ),
                 ],
               ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          StatusChip(
+            late
+                ? tr('Overdue: late fees are adding up')
+                : tr('Due in {n} day(s) (day {d})', {'n': left, 'd': l.dueDay}),
+            tone: late ? StatusTone.warn : StatusTone.info,
+            icon: late ? Icons.warning_amber_rounded : Icons.schedule,
+          ),
+          const SizedBox(height: 10),
+          TweenAnimationBuilder<double>(
+            tween: Tween(end: frac),
+            duration: reduceMotion(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 500),
+            builder: (_, v, _) => ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: v,
+                minHeight: 8,
+                color: t.teal,
+                backgroundColor: t.muted.withValues(alpha: .2),
+                semanticsLabel: _bi('Time passed', 'Muda uliopita'),
+              ),
             ),
-            FilledButton(
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _bi(
+              'Day {a} of {b} for this deni',
+              'Siku {a} kati ya {b} za deni hili',
+              {'a': (total - left).clamp(0, total), 'b': total},
+            ),
+            style: tt.bodySmall,
+          ),
+          if (l.guarantor != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              _bi('Guarantor: {g}', 'Mdhamini: {g}', {'g': l.guarantor!}),
+              style: tt.bodySmall,
+            ),
+          ],
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
               onPressed: () async {
                 final err = await ref.read(gameProvider.notifier).act({
                   'type': 'credit_repay',
@@ -180,45 +288,11 @@ class _LoanCard extends ConsumerWidget {
               },
               child: Text(tr('Repay')),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
-}
-
-class _Ring extends CustomPainter {
-  _Ring(this.frac, this.c);
-  final double frac;
-  final Color c;
-  @override
-  void paint(Canvas canvas, Size s) {
-    final r = Rect.fromLTWH(4, 4, s.width - 8, s.height - 8);
-    canvas.drawArc(
-      r,
-      0,
-      math.pi * 2,
-      false,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 5
-        ..color = charcoal.withValues(alpha: .1),
-    );
-    canvas.drawArc(
-      r,
-      -math.pi / 2,
-      math.pi * 2 * frac,
-      false,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 5
-        ..strokeCap = StrokeCap.round
-        ..color = c,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_Ring o) => o.frac != frac || o.c != c;
 }
 
 class _CreditSheet extends ConsumerStatefulWidget {

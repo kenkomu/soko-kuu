@@ -28,71 +28,279 @@ class ReportScreen extends StatelessWidget {
   );
 }
 
+String _bi(String en, String sw) => gLang == 'sw' ? sw : en;
+
+bool _big(BuildContext c) => MediaQuery.textScalerOf(c).scale(14) / 14 > 1.3;
+
+class _LoadError extends StatelessWidget {
+  const _LoadError(this.onRetry);
+  final VoidCallback onRetry;
+  @override
+  Widget build(BuildContext context) => Center(
+    child: SingleChildScrollView(
+      child: EmptyState(
+        _bi(
+          'We could not load this. Check your connection and try again.',
+          'Hatukuweza kupakia hii. Angalia mtandao wako ujaribu tena.',
+        ),
+        actionLabel: tr('Try again'),
+        onAction: onRetry,
+      ),
+    ),
+  );
+}
+
+class _SkeletonList extends StatelessWidget {
+  const _SkeletonList();
+  @override
+  Widget build(BuildContext context) => ListView(
+    physics: const NeverScrollableScrollPhysics(),
+    padding: const EdgeInsets.all(16),
+    children: [
+      for (var i = 0; i < 5; i++)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            children: [
+              const Skeleton(width: 40, height: 40, radius: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Skeleton(width: 120),
+                    const SizedBox(height: 6),
+                    Skeleton(width: 80 + i * 20.0, height: 12),
+                  ],
+                ),
+              ),
+              const Skeleton(width: 56),
+            ],
+          ),
+        ),
+    ],
+  );
+}
+
 class _LedgerTab extends ConsumerWidget {
   const _LedgerTab();
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final today = ref.watch(gameProvider).requireValue.player.day;
+    final player = ref.watch(gameProvider).requireValue.player;
+    final today = player.day;
     final sel = ref.watch(ledgerDayProvider) ?? today;
-    return AsyncBody<DayLedger>(
-      value: ref.watch(ledgerProvider),
-      onRetry: () => ref.invalidate(ledgerProvider),
-      builder: (l) => ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-        children: [
-          Row(
-            children: [
-              IconButton(
-                tooltip: tr('Previous day'),
-                onPressed: sel > 1
-                    ? () => ref.read(ledgerDayProvider.notifier).set(sel - 1)
-                    : null,
-                icon: const Icon(Icons.chevron_left),
-              ),
-              Expanded(
-                child: Center(
-                  child: Text(
-                    tr('Day {d}', {'d': sel}),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 16,
+    final tt = Theme.of(context).textTheme;
+    return ref
+        .watch(ledgerProvider)
+        .when(
+          loading: () => const _SkeletonList(),
+          error: (_, _) => _LoadError(() => ref.invalidate(ledgerProvider)),
+          data: (l) {
+            // Running balance is only known for today: it ends at the purse.
+            final after = <int>[];
+            var run = player.pts;
+            for (final e in l.entries.reversed) {
+              after.add(run);
+              run -= e.delta;
+            }
+            final bal = after.reversed.toList();
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+              children: [
+                Row(
+                  children: [
+                    IconButton(
+                      tooltip: tr('Previous day'),
+                      onPressed: sel > 1
+                          ? () => ref
+                                .read(ledgerDayProvider.notifier)
+                                .set(sel - 1)
+                          : null,
+                      icon: const Icon(Icons.chevron_left),
+                    ),
+                    Expanded(
+                      child: Center(
+                        child: Text(
+                          tr('Day {d}', {'d': sel}),
+                          style: tt.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: tr('Next day'),
+                      onPressed: sel < today
+                          ? () => ref
+                                .read(ledgerDayProvider.notifier)
+                                .set(sel + 1)
+                          : null,
+                      icon: const Icon(Icons.chevron_right),
+                    ),
+                  ],
+                ),
+                if (l.entries.isEmpty)
+                  EmptyState(tr('Nothing recorded for this day yet.'))
+                else ...[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(4, 8, 4, 4),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            tr('Net for the day'),
+                            style: tt.titleSmall,
+                          ),
+                        ),
+                        DeltaChip(
+                          l.net,
+                          suffix: ' pts',
+                          upWord: _bi('up', 'juu'),
+                          downWord: _bi('down', 'chini'),
+                          flatWord: _bi('unchanged', 'haijabadilika'),
+                        ),
+                      ],
                     ),
                   ),
+                  const Divider(height: 1),
+                  for (var i = 0; i < l.entries.length; i++)
+                    _LedgerRow(
+                      l.entries[i],
+                      balance: sel == today ? bal[i] : null,
+                    ),
+                ],
+              ],
+            );
+          },
+        );
+  }
+}
+
+class _LedgerRow extends StatelessWidget {
+  const _LedgerRow(this.e, {this.balance});
+  final LedgerEntry e;
+  final int? balance;
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final tt = Theme.of(context).textTheme;
+    final up = e.delta > 0, flat = e.delta == 0;
+    final c = flat ? t.muted : (up ? t.up : t.down);
+    final sign = flat ? '' : (up ? '+' : '−');
+    final letter = e.label.isEmpty
+        ? '?'
+        : e.label.characters.first.toUpperCase();
+    final amount = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          flat
+              ? Icons.remove
+              : (up ? Icons.arrow_upward : Icons.arrow_downward),
+          size: 16,
+          color: c,
+        ),
+        const SizedBox(width: 2),
+        Flexible(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(sign, style: Money.baseStyle(context).copyWith(color: c)),
+              Flexible(
+                child: Money(
+                  e.delta.abs(),
+                  style: TextStyle(color: c),
+                  textAlign: TextAlign.end,
                 ),
-              ),
-              IconButton(
-                tooltip: tr('Next day'),
-                onPressed: sel < today
-                    ? () => ref.read(ledgerDayProvider.notifier).set(sel + 1)
-                    : null,
-                icon: const Icon(Icons.chevron_right),
               ),
             ],
           ),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
+        ),
+      ],
+    );
+    final balText = balance == null
+        ? null
+        : Text(
+            _bi(
+              'Balance ${formatPts(balance!)}',
+              'Salio ${formatPts(balance!)}',
+            ),
+            style: tt.bodySmall?.copyWith(color: t.muted),
+            textAlign: TextAlign.end,
+          );
+    final words = flat
+        ? _bi('no change', 'hakuna mabadiliko')
+        : '${up ? _bi('gained', 'imeongezeka') : _bi('lost', 'imepungua')} ${formatPts(e.delta.abs())}';
+    final text = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          e.label,
+          style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        if (e.cause.isNotEmpty) Text(e.cause, style: tt.bodySmall),
+      ],
+    );
+    final chip = Container(
+      width: 40,
+      height: 40,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: t.indigo.withValues(alpha: .14),
+        shape: BoxShape.circle,
+      ),
+      child: Text(
+        letter,
+        style: TextStyle(
+          fontFamily: headingFont,
+          fontWeight: FontWeight.w600,
+          color: Theme.of(context).colorScheme.onSurface,
+        ),
+      ),
+    );
+    return Semantics(
+      container: true,
+      label:
+          '${e.label}. ${e.cause}. $words.${balance == null ? '' : ' ${_bi('Balance', 'Salio')} ${formatPts(balance!)}.'}',
+      excludeSemantics: true,
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 56),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: Theme.of(context).dividerColor),
+          ),
+        ),
+        child: _big(context)
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(child: Text(tr('Net for the day'))),
-                  DeltaChip(l.net, suffix: ' pts'),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      chip,
+                      const SizedBox(width: 12),
+                      Expanded(child: text),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Align(alignment: Alignment.centerRight, child: amount),
+                  ?balText,
+                ],
+              )
+            : Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  chip,
+                  const SizedBox(width: 12),
+                  Expanded(child: text),
+                  const SizedBox(width: 8),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [amount, ?balText],
+                  ),
                 ],
               ),
-            ),
-          ),
-          if (l.entries.isEmpty)
-            EmptyState(tr('Nothing recorded for this day yet.')),
-          for (final e in l.entries) ...[
-            const SizedBox(height: 8),
-            Card(
-              child: ListTile(
-                title: Text(e.label),
-                subtitle: Text(e.cause),
-                trailing: e.delta == 0 ? const Text('-') : DeltaChip(e.delta),
-              ),
-            ),
-          ],
-        ],
       ),
     );
   }
@@ -104,86 +312,117 @@ class _ReportTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final rep = ref.watch(reportProvider);
     final board = ref.watch(boardProvider);
-    return AsyncBody<SokoReport>(
-      value: rep,
-      onRetry: () => ref.invalidate(reportProvider),
-      builder: (r) => ListView(
+    final t = context.tokens;
+    final tt = Theme.of(context).textTheme;
+    return rep.when(
+      loading: () => const _SkeletonList(),
+      error: (_, _) => _LoadError(() => ref.invalidate(reportProvider)),
+      data: (r) => ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
         children: [
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(tr('Your score')),
-                  Num(
-                    fmt(r.score),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 28,
-                    ),
-                  ),
-                  Text(
-                    tr('Pts plus stock value, minus what you owe.'),
-                    style: TextStyle(fontSize: 12),
-                  ),
-                ],
+          SummaryStrip([
+            SummaryCell(label: tr('Your score'), value: fmt(r.score)),
+            if (r.best > 0)
+              SummaryCell(
+                label: _bi('Best so far', 'Bora hadi sasa'),
+                value: fmt(r.best),
               ),
+          ]),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 6, 4, 0),
+            child: Text(
+              tr('Pts plus stock value, minus what you owe.'),
+              style: tt.bodySmall,
             ),
           ),
           SectionTitle(tr('Basket price index')),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Sparkline(r.priceIndex, width: 240, height: 60),
+          SokoCard(
+            child: r.priceIndex.isEmpty
+                ? Text(
+                    _bi(
+                      'No prices recorded yet.',
+                      'Bado hakuna bei zilizorekodiwa.',
+                    ),
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        bpPercent(r.priceIndex.last),
+                        style: tt.headlineSmall?.copyWith(
+                          fontFamily: headingFont,
+                          fontFeatures: tabular,
+                        ),
+                      ),
+                      Text(
+                        _bi(
+                          'Today, against the start (100%).',
+                          'Leo, ikilinganishwa na mwanzo (100%).',
+                        ),
+                        style: tt.bodySmall,
+                      ),
+                      const SizedBox(height: 8),
+                      LayoutBuilder(
+                        builder: (c, bc) => Sparkline(
+                          r.priceIndex,
+                          width: bc.maxWidth,
+                          height: 60,
+                          semanticLabel: _bi(
+                            'Basket price index chart, now ${bpPercent(r.priceIndex.last)}',
+                            'Mchoro wa bei za kapu, sasa ${bpPercent(r.priceIndex.last)}',
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  Num(
-                    bpPercent(r.priceIndex.isEmpty ? 10000 : r.priceIndex.last),
-                  ),
-                ],
-              ),
-            ),
           ),
           const _SimCard(),
           SectionTitle(tr('Pts into and out of the market')),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                children: [
-                  _Bar(
-                    tr('Added (allowances)'),
-                    r.faucets,
-                    r.faucets + r.sinks,
-                    leaf,
-                  ),
-                  const SizedBox(height: 8),
-                  _Bar(
-                    tr('Removed (cess, fees, spoilage)'),
-                    r.sinks,
-                    r.faucets + r.sinks,
-                    terracotta,
-                  ),
-                ],
-              ),
+          SokoCard(
+            child: Column(
+              children: [
+                _Bar(
+                  tr('Added (allowances)'),
+                  r.faucets,
+                  r.faucets + r.sinks,
+                  t.up,
+                  icon: Icons.add_circle_outline,
+                ),
+                const SizedBox(height: 10),
+                _Bar(
+                  tr('Removed (cess, fees, spoilage)'),
+                  r.sinks,
+                  r.faucets + r.sinks,
+                  t.down,
+                  icon: Icons.remove_circle_outline,
+                ),
+              ],
             ),
           ),
           SectionTitle(tr('Trader health')),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
+          if (r.solvency.isEmpty)
+            EmptyState(
+              _bi(
+                'No trader health figures yet.',
+                'Bado hakuna takwimu za afya ya wafanyabiashara.',
+              ),
+            )
+          else
+            SokoCard(
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
                 children: [
                   for (final e in r.solvency.entries)
-                    _Bar(titleCase(e.key), e.value, 100, ochre, suffix: '%'),
+                    StatusChip(
+                      '${titleCase(e.key)} ${e.value}%',
+                      tone: e.value >= 70
+                          ? StatusTone.good
+                          : (e.value >= 40 ? StatusTone.warn : StatusTone.bad),
+                    ),
                 ],
               ),
             ),
-          ),
           SectionTitle(tr('Rankings')),
           board.when(
             data: (b) => Card(
@@ -239,9 +478,11 @@ class _Bar extends StatelessWidget {
     this.value,
     this.max,
     this.color, {
-    this.suffix = ' pts',
+    this.icon,
   });
-  final String label, suffix;
+  final IconData? icon;
+  final String label;
+  static const suffix = ' pts';
   final int value, max;
   final Color color;
   @override
@@ -250,10 +491,14 @@ class _Bar extends StatelessWidget {
     children: [
       Row(
         children: [
-          Expanded(child: Text(label, style: const TextStyle(fontSize: 12))),
+          if (icon != null) ...[
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 6),
+          ],
+          Expanded(child: Text(label, style: const TextStyle(fontSize: 13))),
           Num(
             '${fmt(value)}$suffix',
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
           ),
         ],
       ),

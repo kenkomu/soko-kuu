@@ -11,6 +11,8 @@ import '../data/api_client.dart';
 import '../data/demo_ledger.dart';
 import '../data/relayer_client.dart';
 import '../domain/models.dart';
+import '../ui/kit/feel.dart';
+import 'trade_book.dart';
 
 const _apiBase = String.fromEnvironment('API_BASE', defaultValue: '');
 const _demoFlag = bool.fromEnvironment('DEMO', defaultValue: false);
@@ -32,6 +34,27 @@ class DemoMode extends Notifier<bool> {
     ref.read(prefsProvider).setBool('force_demo', v);
   }
 }
+
+class _PrefFlag extends Notifier<bool> {
+  _PrefFlag(this.key, this.def);
+  final String key;
+  final bool def;
+  @override
+  bool build() => ref.read(prefsProvider).getBool(key) ?? def;
+  void set(bool v) {
+    state = v;
+    ref.read(prefsProvider).setBool(key, v);
+    Feel.load(ref.read(prefsProvider));
+  }
+}
+
+/// Settings toggles. Sound is off by default.
+final hapticsProvider = NotifierProvider<_PrefFlag, bool>(
+  () => _PrefFlag('haptics', true),
+);
+final soundProvider = NotifierProvider<_PrefFlag, bool>(
+  () => _PrefFlag('sound', false),
+);
 
 final demoModeProvider = NotifierProvider<DemoMode, bool>(DemoMode.new);
 
@@ -253,7 +276,17 @@ class GameNotifier extends AsyncNotifier<GameState> {
   Future<void> refresh() async => state = await AsyncValue.guard(_load);
 
   /// Signs and sends an action; returns an error message or null on success.
+  /// The sale the player just made, for the result view (cleared on read).
+  TradeResult? takeResult() {
+    final r = _last;
+    _last = null;
+    return r;
+  }
+
+  TradeResult? _last;
+
   Future<String?> act(Map<String, dynamic> action) async {
+    final before = state.value?.player;
     final api = ref.read(apiProvider);
     final s = await ref.read(sessionProvider.future);
     try {
@@ -284,6 +317,16 @@ class GameNotifier extends AsyncNotifier<GameState> {
           res.state,
         ),
       );
+      if (before != null) {
+        final book = TradeBook(ref.read(prefsProvider));
+        final good = '${action['good']}';
+        final qty = (action['qty'] as num?)?.toInt() ?? 0;
+        if (action['type'] == 'buy') {
+          book.bought(good, qty, before.pts - res.state.pts, before.day);
+        } else if (action['type'] == 'sell') {
+          _last = book.sold(good, qty, res.state.pts - before.pts, before.day);
+        }
+      }
       return null;
     } on ApiException catch (e) {
       if (e.code == 'BAD_NONCE') await refresh();

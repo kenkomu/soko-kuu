@@ -5,33 +5,33 @@ void main() {
   // Real strings from econ/src/pricing.rs, econ/src/events.rs and the demo ledger.
   final why = <String, String>{
     'Price rise limited to 20% today; it may climb further tomorrow.':
-        'Kupanda kwa bei kumezuiwa kwa 20% leo; huenda ikapanda zaidi kesho.',
+        'Bei imeruhusiwa kupanda 20% tu leo; kesho inaweza kupanda tena.',
     'Price fall limited to 20% today; it may drop further tomorrow.':
-        'Kushuka kwa bei kumezuiwa kwa 20% leo; huenda ikashuka zaidi kesho.',
-    'tomato is scarce at this stall, so the price is 12% above normal.': 'Nyanya: ni adimu kwenye duka hili, kwa hiyo bei iko 12% juu ya kawaida.',
-    'maize is plentiful at this stall, so the price is 8% below normal.': 'Mahindi: ni nyingi kwenye duka hili, kwa hiyo bei iko 8% chini ya kawaida.',
-    'onion stock is near normal, so the price sits near its usual level.': 'Vitunguu: akiba iko karibu na kawaida, kwa hiyo bei iko karibu na kiwango chake cha kawaida.',
+        'Bei imeruhusiwa kushuka 20% tu leo; kesho inaweza kushuka tena.',
+    'tomato is scarce at this stall, so the price is 12% above normal.': 'Nyanya: ni chache hapa, ndiyo maana bei iko 12% juu ya kawaida.',
+    'maize is plentiful at this stall, so the price is 8% below normal.': 'Mahindi: ni nyingi hapa, ndiyo maana bei iko 8% chini ya kawaida.',
+    'onion stock is near normal, so the price sits near its usual level.': 'Vitunguu: mzigo uko kawaida, kwa hiyo bei iko pale pale.',
     'Ukame (drought) cuts kale supply.':
-        'Ukame unapunguza upatikanaji wa Sukuma wiki.',
+        'Ukame umebana: Sukuma wiki ni ngumu kupata.',
     'Fuel costs add about 6% to fish.':
-        'Gharama za mafuta zinaongeza takriban 6% kwa Samaki.',
+        'Mafuta ni ghali: Samaki imeongezeka takriban 6%.',
     'The cut road delays deliveries.':
-        'Barabara iliyokatika inachelewesha mizigo.',
-    'Festival crowds push demand up.': 'Umati wa sikukuu unaongeza mahitaji.',
+        'Barabara imekatika, mizigo inachelewa kufika.',
+    'Festival crowds push demand up.': 'Ni sikukuu: wateja ni wengi, bei inapanda.',
     'Harvest season: maize is arriving in bulk.':
-        'Msimu wa mavuno: Mahindi kwa wingi sokoni.',
-    'A glut of tomato pushes its price down.': 'Wingi wa Nyanya unashusha bei.',
+        'Ni msimu wa mavuno: Mahindi inaingia kwa wingi.',
+    'A glut of tomato pushes its price down.': 'Kuna Nyanya nyingi sokoni, bei inashuka.',
     'Drought moved the mid price +15%.':
-        'Ukame umebadilisha bei ya kati kwa +15%.',
+        'Ukame umesogeza bei ya kati kwa +15%.',
     'Fuel costs moved the mid price -4%.':
-        'Gharama za mafuta umebadilisha bei ya kati kwa -4%.',
+        'Gharama za mafuta zimesogeza bei ya kati kwa -4%.',
     'Only 9 units left at njeri, so the ask is firm.':
-        'Vimebaki vipimo 9 tu kwa Njeri, kwa hiyo bei ya kuuza ni imara.',
+        'Vimebaki 9 tu kwa Njeri, kwa hiyo bei haitetereki.',
     'baraka has 37 units, enough to hold the ask steady.':
-        'Baraka ana vipimo 37, vya kutosha kuweka bei ya kuuza thabiti.',
-    'Trader spread is 6% each way: you buy at ask, sell at bid.': 'Tofauti ya mfanyabiashara ni 6% kila upande: unanunua kwa bei ya kuuza, unauza kwa bei ya kununua.',
+        'Baraka ana 37, vya kutosha bei itulie.',
+    'Trader spread is 6% each way: you buy at ask, sell at bid.': 'Mfanyabiashara huchukua 6% kila upande: unanunua kwa bei ya kuuza, unauza kwa bei ya kununua.',
     'tomato spoils: 10% of unsold stock is lost each night.':
-        'Nyanya huharibika: 10% ya mzigo usiouzwa hupotea kila usiku.',
+        'Nyanya: huharibika, 10% ya mzigo usiouzwa hupotea kila usiku.',
   };
   test('each why template has a Swahili translation; English is untouched', () {
     for (final e in why.entries) {

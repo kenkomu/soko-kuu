@@ -98,59 +98,59 @@ final _whyPatterns = <(RegExp, _Tpl)>[
       r'^Price rise limited to (\d+)% today; it may climb further tomorrow\.$',
     ),
     (m) =>
-        'Kupanda kwa bei kumezuiwa kwa ${m[1]}% leo; huenda ikapanda zaidi kesho.',
+        'Bei imeruhusiwa kupanda ${m[1]}% tu leo; kesho inaweza kupanda tena.',
   ),
   (
     RegExp(
       r'^Price fall limited to (\d+)% today; it may drop further tomorrow\.$',
     ),
     (m) =>
-        'Kushuka kwa bei kumezuiwa kwa ${m[1]}% leo; huenda ikashuka zaidi kesho.',
+        'Bei imeruhusiwa kushuka ${m[1]}% tu leo; kesho inaweza kushuka tena.',
   ),
   (
     RegExp(
       r'^(\w+) is scarce at this stall, so the price is (\d+)% above normal\.$',
     ),
     (m) =>
-        '${_g(m[1])}: ni adimu kwenye duka hili, kwa hiyo bei iko ${m[2]}% juu ya kawaida.',
+        '${_g(m[1])}: ni chache hapa, ndiyo maana bei iko ${m[2]}% juu ya kawaida.',
   ),
   (
     RegExp(
       r'^(\w+) is plentiful at this stall, so the price is (\d+)% below normal\.$',
     ),
     (m) =>
-        '${_g(m[1])}: ni nyingi kwenye duka hili, kwa hiyo bei iko ${m[2]}% chini ya kawaida.',
+        '${_g(m[1])}: ni nyingi hapa, ndiyo maana bei iko ${m[2]}% chini ya kawaida.',
   ),
   (
     RegExp(
       r'^(\w+) stock is near normal, so the price sits near its usual level\.$',
     ),
     (m) =>
-        '${_g(m[1])}: akiba iko karibu na kawaida, kwa hiyo bei iko karibu na kiwango chake cha kawaida.',
+        '${_g(m[1])}: mzigo uko kawaida, kwa hiyo bei iko pale pale.',
   ),
   (
     RegExp(r'^Ukame \(drought\) cuts (\w+) supply\.$'),
-    (m) => 'Ukame unapunguza upatikanaji wa ${_g(m[1])}.',
+    (m) => 'Ukame umebana: ${_g(m[1])} ni ngumu kupata.',
   ),
   (
     RegExp(r'^Fuel costs add about (\d+)% to (\w+)\.$'),
-    (m) => 'Gharama za mafuta zinaongeza takriban ${m[1]}% kwa ${_g(m[2])}.',
+    (m) => 'Mafuta ni ghali: ${_g(m[2])} imeongezeka takriban ${m[1]}%.',
   ),
   (
     RegExp(r'^The cut road delays deliveries\.$'),
-    (m) => 'Barabara iliyokatika inachelewesha mizigo.',
+    (m) => 'Barabara imekatika, mizigo inachelewa kufika.',
   ),
   (
     RegExp(r'^Festival crowds push demand up\.$'),
-    (m) => 'Umati wa sikukuu unaongeza mahitaji.',
+    (m) => 'Ni sikukuu: wateja ni wengi, bei inapanda.',
   ),
   (
     RegExp(r'^Harvest season: (\w+) is arriving in bulk\.$'),
-    (m) => 'Msimu wa mavuno: ${_g(m[1])} kwa wingi sokoni.',
+    (m) => 'Ni msimu wa mavuno: ${_g(m[1])} inaingia kwa wingi.',
   ),
   (
     RegExp(r'^A glut of (\w+) pushes its price down\.$'),
-    (m) => 'Wingi wa ${_g(m[1])} unashusha bei.',
+    (m) => 'Kuna ${_g(m[1])} nyingi sokoni, bei inashuka.',
   ),
   // Offline demo ledger.
   (
@@ -158,29 +158,29 @@ final _whyPatterns = <(RegExp, _Tpl)>[
       r'^(Fuel costs|Drought|Glut|Road delays) moved the mid price ([+-]?\d+)%\.$',
     ),
     (m) =>
-        '${const {'Fuel costs': 'Gharama za mafuta', 'Drought': 'Ukame', 'Glut': 'Wingi wa mazao', 'Road delays': 'Ucheleweshaji barabarani'}[m[1]]} umebadilisha bei ya kati kwa ${m[2]}%.',
+        '${const {'Fuel costs': 'Gharama za mafuta zimesogeza', 'Drought': 'Ukame umesogeza', 'Glut': 'Wingi wa mazao umesogeza', 'Road delays': 'Ucheleweshaji barabarani umesogeza'}[m[1]]} bei ya kati kwa ${m[2]}%.',
   ),
   (
     RegExp(r'^Only (\d+) units left at (\w+), so the ask is firm\.$'),
     (m) =>
-        'Vimebaki vipimo ${m[1]} tu kwa ${_cap(m[2]!)}, kwa hiyo bei ya kuuza ni imara.',
+        'Vimebaki ${m[1]} tu kwa ${_cap(m[2]!)}, kwa hiyo bei haitetereki.',
   ),
   (
     RegExp(r'^(\w+) has (\d+) units, enough to hold the ask steady\.$'),
     (m) =>
-        '${_cap(m[1]!)} ana vipimo ${m[2]}, vya kutosha kuweka bei ya kuuza thabiti.',
+        '${_cap(m[1]!)} ana ${m[2]}, vya kutosha bei itulie.',
   ),
   (
     RegExp(
       r'^Trader spread is (\d+)% each way: you buy at ask, sell at bid\.$',
     ),
     (m) =>
-        'Tofauti ya mfanyabiashara ni ${m[1]}% kila upande: unanunua kwa bei ya kuuza, unauza kwa bei ya kununua.',
+        'Mfanyabiashara huchukua ${m[1]}% kila upande: unanunua kwa bei ya kuuza, unauza kwa bei ya kununua.',
   ),
   (
     RegExp(r'^(\w+) spoils: (\d+)% of unsold stock is lost each night\.$'),
     (m) =>
-        '${_g(m[1])} huharibika: ${m[2]}% ya mzigo usiouzwa hupotea kila usiku.',
+        '${_g(m[1])}: huharibika, ${m[2]}% ya mzigo usiouzwa hupotea kila usiku.',
   ),
 ];
 

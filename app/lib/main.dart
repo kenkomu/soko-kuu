@@ -6,12 +6,14 @@ import 'l10n.dart';
 import 'state/providers.dart';
 import 'ui/gate.dart';
 import 'ui/home.dart';
+import 'ui/kit/feel.dart';
 import 'ui/login.dart';
 import 'ui/theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final prefs = await SharedPreferences.getInstance();
+  Feel.load(prefs);
   runApp(
     ProviderScope(
       overrides: [prefsProvider.overrideWithValue(prefs)],
@@ -29,6 +31,8 @@ class SokoKuuApp extends ConsumerWidget {
       title: 'Soko Kuu',
       debugShowCheckedModeBanner: false,
       theme: buildTheme(),
+      darkTheme: buildDarkTheme(),
+      themeMode: ThemeMode.system,
       key: ValueKey(ref.watch(langProvider)),
       locale: Locale(ref.watch(langProvider)),
       supportedLocales: supportedLangs,
