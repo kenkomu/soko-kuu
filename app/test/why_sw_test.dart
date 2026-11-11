@@ -8,19 +8,24 @@ void main() {
         'Bei imeruhusiwa kupanda 20% tu leo; kesho inaweza kupanda tena.',
     'Price fall limited to 20% today; it may drop further tomorrow.':
         'Bei imeruhusiwa kushuka 20% tu leo; kesho inaweza kushuka tena.',
-    'tomato is scarce at this stall, so the price is 12% above normal.': 'Nyanya: ni chache hapa, ndiyo maana bei iko 12% juu ya kawaida.',
-    'maize is plentiful at this stall, so the price is 8% below normal.': 'Mahindi: ni nyingi hapa, ndiyo maana bei iko 8% chini ya kawaida.',
-    'onion stock is near normal, so the price sits near its usual level.': 'Vitunguu: mzigo uko kawaida, kwa hiyo bei iko pale pale.',
+    'tomato is scarce at this stall, so the price is 12% above normal.':
+        'Nyanya: ni chache hapa, ndiyo maana bei iko 12% juu ya kawaida.',
+    'maize is plentiful at this stall, so the price is 8% below normal.':
+        'Mahindi: ni nyingi hapa, ndiyo maana bei iko 8% chini ya kawaida.',
+    'onion stock is near normal, so the price sits near its usual level.':
+        'Vitunguu: mzigo uko kawaida, kwa hiyo bei iko pale pale.',
     'Ukame (drought) cuts kale supply.':
         'Ukame umebana: Sukuma wiki ni ngumu kupata.',
     'Fuel costs add about 6% to fish.':
         'Mafuta ni ghali: Samaki imeongezeka takriban 6%.',
     'The cut road delays deliveries.':
         'Barabara imekatika, mizigo inachelewa kufika.',
-    'Festival crowds push demand up.': 'Ni sikukuu: wateja ni wengi, bei inapanda.',
+    'Festival crowds push demand up.':
+        'Ni sikukuu: wateja ni wengi, bei inapanda.',
     'Harvest season: maize is arriving in bulk.':
         'Ni msimu wa mavuno: Mahindi inaingia kwa wingi.',
-    'A glut of tomato pushes its price down.': 'Kuna Nyanya nyingi sokoni, bei inashuka.',
+    'A glut of tomato pushes its price down.':
+        'Kuna Nyanya nyingi sokoni, bei inashuka.',
     'Drought moved the mid price +15%.':
         'Ukame umesogeza bei ya kati kwa +15%.',
     'Fuel costs moved the mid price -4%.':

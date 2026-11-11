@@ -31,12 +31,45 @@ class TradeBook {
     final cur = _basis(good);
     final q = cur.$1 + qty, c = cur.$2 + spent;
     p.setString('cb_$good', '$q:$c:$day');
+    _log(day, good, 'b', 0);
   }
+
+  /// Short log of recent trades ('day|good|b/s|delta'), newest last, for the
+  /// Radio Soko stories. Display only.
+  void _log(int day, String good, String type, int delta) {
+    final l = p.getStringList('tlog') ?? <String>[];
+    l.add('$day|$good|$type|$delta');
+    p.setStringList('tlog', l.length > 40 ? l.sublist(l.length - 40) : l);
+  }
+
+  /// What the player did with [good] on or after [fromDay]: whether they
+  /// bought, how many sales, and the points made or lost on those sales.
+  ({bool bought, int sales, int net}) tradedSince(String good, int fromDay) {
+    var bought = false, sales = 0, net = 0;
+    for (final e in p.getStringList('tlog') ?? const <String>[]) {
+      final f = e.split('|');
+      if (f.length != 4 || f[1] != good) continue;
+      if ((int.tryParse(f[0]) ?? -1) < fromDay) continue;
+      if (f[2] == 'b') {
+        bought = true;
+      } else {
+        sales++;
+        net += int.tryParse(f[3]) ?? 0;
+      }
+    }
+    return (bought: bought, sales: sales, net: net);
+  }
+
+  bool get hadProfit => p.getBool('profit_seen') ?? false;
 
   (int, int, int) _basis(String good) {
     final s = (p.getString('cb_$good') ?? '').split(':');
     if (s.length != 3) return (0, 0, 0);
-    return (int.tryParse(s[0]) ?? 0, int.tryParse(s[1]) ?? 0, int.tryParse(s[2]) ?? 0);
+    return (
+      int.tryParse(s[0]) ?? 0,
+      int.tryParse(s[1]) ?? 0,
+      int.tryParse(s[2]) ?? 0,
+    );
   }
 
   /// Null when the cost of this stock is unknown (for example, app data was cleared).
@@ -50,6 +83,8 @@ class TradeBook {
     final first = !(p.getBool('first_sale_seen') ?? false);
     p.setBool('first_sale_seen', true);
     _addDay(day, delta);
+    _log(day, good, 's', delta);
+    if (delta > 0) p.setBool('profit_seen', true);
     return TradeResult(
       good: good,
       qty: qty,

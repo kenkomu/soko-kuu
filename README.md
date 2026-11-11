@@ -76,7 +76,7 @@ More checks (exported method list, code hash, replay and expiry rules): `contrac
 | Folder | What | Notes |
 |---|---|---|
 | `econ/` | Rust crate: pricing curve, events, chama and credit rules | No NEAR dependency. A 100-seed, 60-day stability simulation keeps total money within +-15% (worst measured drift is about 1%). `econ/JUDGES.md` |
-| `contract/` | NEAR contract (near-sdk) | Signed `act`, non-transferable pts, uses `econ`. 42 unit tests plus local sandbox tests. `contract/JUDGES.md` |
+| `contract/` | NEAR contract (near-sdk) | Signed `act`, non-transferable pts, uses `econ`. 46 unit tests plus local sandbox tests. `contract/JUDGES.md` |
 | `runner/` | Rust (axum) relayer and API | Email login, merchant decision loop, `/v1/sim`, demo mode. 55 tests. `runner/JUDGES.md` |
 | `app/` | Flutter (Android and web) | Talks only to the runner API. Offline demo mode. 31 tests. `app/JUDGES.md` |
 | `docs/` | `API.md` (app-to-runner contract), `SECURITY_UX.md` | |
@@ -85,7 +85,7 @@ More checks (exported method list, code hash, replay and expiry rules): `contrac
 
 ```
 cd econ     && cargo test --release                      # includes the 100-seed stability simulation
-cd contract && cargo test                                 # 42 unit tests
+cd contract && cargo test                                 # 46 unit tests
 cd runner   && make test                                  # API, signing, rate limits, CORS, sim
 cd app      && flutter pub get && flutter analyze && flutter test
 ```

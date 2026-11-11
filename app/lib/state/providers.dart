@@ -12,6 +12,7 @@ import '../data/demo_ledger.dart';
 import '../data/relayer_client.dart';
 import '../domain/models.dart';
 import '../ui/kit/feel.dart';
+import 'news_stories.dart';
 import 'trade_book.dart';
 
 const _apiBase = String.fromEnvironment('API_BASE', defaultValue: '');
@@ -398,4 +399,16 @@ final simProvider = FutureProvider.family<List<SimFrame>, (int, String?)>((
   return ref.read(apiProvider).sim(1, days, [
     if (kind != null) {'day': 2, 'kind': kind, 'magnitude': 30},
   ]);
+});
+
+/// Radio Soko tips and, on later days, how the real prices moved.
+final storiesProvider = Provider<List<StoryView>>((ref) {
+  final g = ref.watch(gameProvider).value;
+  if (g == null) return const [];
+  return StoryBook(ref.read(prefsProvider)).sync(
+    news: g.news,
+    prices: g.prices,
+    day: g.player.day,
+    demo: ref.watch(demoModeProvider),
+  );
 });

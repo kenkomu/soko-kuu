@@ -125,8 +125,7 @@ final _whyPatterns = <(RegExp, _Tpl)>[
     RegExp(
       r'^(\w+) stock is near normal, so the price sits near its usual level\.$',
     ),
-    (m) =>
-        '${_g(m[1])}: mzigo uko kawaida, kwa hiyo bei iko pale pale.',
+    (m) => '${_g(m[1])}: mzigo uko kawaida, kwa hiyo bei iko pale pale.',
   ),
   (
     RegExp(r'^Ukame \(drought\) cuts (\w+) supply\.$'),
@@ -162,13 +161,11 @@ final _whyPatterns = <(RegExp, _Tpl)>[
   ),
   (
     RegExp(r'^Only (\d+) units left at (\w+), so the ask is firm\.$'),
-    (m) =>
-        'Vimebaki ${m[1]} tu kwa ${_cap(m[2]!)}, kwa hiyo bei haitetereki.',
+    (m) => 'Vimebaki ${m[1]} tu kwa ${_cap(m[2]!)}, kwa hiyo bei haitetereki.',
   ),
   (
     RegExp(r'^(\w+) has (\d+) units, enough to hold the ask steady\.$'),
-    (m) =>
-        '${_cap(m[1]!)} ana ${m[2]}, vya kutosha bei itulie.',
+    (m) => '${_cap(m[1]!)} ana ${m[2]}, vya kutosha bei itulie.',
   ),
   (
     RegExp(

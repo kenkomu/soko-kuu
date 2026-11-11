@@ -138,9 +138,18 @@ class _PotCard extends StatelessWidget {
         Text(chama.name, style: tt.titleLarge),
         const SizedBox(height: 8),
         SummaryStrip([
-          SummaryCell(label: _bi('Common pot', 'Mfuko wa pamoja'), value: formatPts(chama.cash)),
-          SummaryCell(label: _bi('Your share', 'Sehemu yako'), value: formatPts(me?.shares ?? 0)),
-          SummaryCell(label: _bi('Paid in', 'Wamechangia'), value: '$paid / $total'),
+          SummaryCell(
+            label: _bi('Common pot', 'Mfuko wa pamoja'),
+            value: formatPts(chama.cash),
+          ),
+          SummaryCell(
+            label: _bi('Your share', 'Sehemu yako'),
+            value: formatPts(me?.shares ?? 0),
+          ),
+          SummaryCell(
+            label: _bi('Paid in', 'Wamechangia'),
+            value: '$paid / $total',
+          ),
           SummaryCell(label: _bi('Waiting', 'Wanasubiriwa'), value: '$waiting'),
         ]),
         const SizedBox(height: 12),
@@ -150,15 +159,24 @@ class _PotCard extends StatelessWidget {
             children: [
               Text(
                 need == null
-                    ? _bi('Pot {c} pts', 'Mfuko {c} pts', {'c': fmt(chama.cash)})
-                    : _bi('Pot {c} of {n} pts', 'Mfuko {c} kati ya {n} pts', {'c': fmt(chama.cash), 'n': fmt(need)}),
+                    ? _bi('Pot {c} pts', 'Mfuko {c} pts', {
+                        'c': fmt(chama.cash),
+                      })
+                    : _bi('Pot {c} of {n} pts', 'Mfuko {c} kati ya {n} pts', {
+                        'c': fmt(chama.cash),
+                        'n': fmt(need),
+                      }),
                 style: tt.titleMedium,
               ),
               if (need != null) ...[
                 const SizedBox(height: 8),
                 TweenAnimationBuilder<double>(
-                  tween: Tween(end: need == 0 ? 1.0 : (chama.cash / need).clamp(0.0, 1.0)),
-                  duration: reduceMotion(context) ? Duration.zero : const Duration(milliseconds: 500),
+                  tween: Tween(
+                    end: need == 0 ? 1.0 : (chama.cash / need).clamp(0.0, 1.0),
+                  ),
+                  duration: reduceMotion(context)
+                      ? Duration.zero
+                      : const Duration(milliseconds: 500),
                   builder: (_, v, _) => ClipRRect(
                     borderRadius: BorderRadius.circular(6),
                     child: LinearProgressIndicator(
@@ -172,8 +190,14 @@ class _PotCard extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(
                   chama.cash >= need
-                      ? _bi('The pot covers the lot on offer.', 'Mfuko unatosha kwa bidhaa iliyotolewa.')
-                      : _bi('The pot is smaller than the lot on offer.', 'Mfuko ni mdogo kuliko bidhaa iliyotolewa.'),
+                      ? _bi(
+                          'The pot covers the lot on offer.',
+                          'Mfuko unatosha kwa bidhaa iliyotolewa.',
+                        )
+                      : _bi(
+                          'The pot is smaller than the lot on offer.',
+                          'Mfuko ni mdogo kuliko bidhaa iliyotolewa.',
+                        ),
                   style: tt.bodySmall,
                 ),
               ],
@@ -197,7 +221,11 @@ class _PotCard extends StatelessWidget {
           )
         else
           Text(
-            _bi('{n} member(s) have not paid in yet.', 'Wanachama {n} bado hawajachangia.', {'n': waiting}),
+            _bi(
+              '{n} member(s) have not paid in yet.',
+              'Wanachama {n} bado hawajachangia.',
+              {'n': waiting},
+            ),
             style: tt.bodySmall,
           ),
         const SizedBox(height: 8),
@@ -222,7 +250,9 @@ class _PaidCell extends StatelessWidget {
     final tt = Theme.of(context).textTheme;
     final paid = m.shares > 0;
     final name = m.you ? _bi('You', 'Wewe') : _short(m.name);
-    final state = paid ? _bi('paid {p}', 'amechangia {p}', {'p': pts(m.shares)}) : _bi('not paid yet', 'bado hajachangia');
+    final state = paid
+        ? _bi('paid {p}', 'amechangia {p}', {'p': pts(m.shares)})
+        : _bi('not paid yet', 'bado hajachangia');
     return Semantics(
       label: '$name: $state',
       excludeSemantics: true,
@@ -232,7 +262,10 @@ class _PaidCell extends StatelessWidget {
         decoration: BoxDecoration(
           color: t.card,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: paid ? t.up : t.muted, width: m.you ? 2 : 1),
+          border: Border.all(
+            color: paid ? t.up : t.muted,
+            width: m.you ? 2 : 1,
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -248,7 +281,11 @@ class _PaidCell extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(name, style: tt.labelLarge, overflow: TextOverflow.ellipsis),
+                  Text(
+                    name,
+                    style: tt.labelLarge,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   Text(
                     paid ? pts(m.shares) : _bi('Pending', 'Inasubiri'),
                     style: tt.bodySmall,
@@ -282,7 +319,11 @@ class _OfferCard extends ConsumerWidget {
   const _OfferCard(this.chama);
   final Chama chama;
 
-  Future<void> _confirm(BuildContext context, WidgetRef ref, ChamaOffer o) async {
+  Future<void> _confirm(
+    BuildContext context,
+    WidgetRef ref,
+    ChamaOffer o,
+  ) async {
     final vote = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
@@ -310,7 +351,10 @@ class _OfferCard extends ConsumerWidget {
     final voted = o.myVote != null;
     final mine = o.borrowerIs(player.playerId);
     final borrowerIn = chama.members.any((m) => m.name == o.borrower);
-    final voters = (chama.members.length - (borrowerIn || mine ? 1 : 0)).clamp(0, 99);
+    final voters = (chama.members.length - (borrowerIn || mine ? 1 : 0)).clamp(
+      0,
+      99,
+    );
     final needYes = voters ~/ 2 + 1;
     final waiting = (voters - o.yes - o.no).clamp(0, 99);
     return SokoCard(
@@ -362,9 +406,11 @@ class _OfferCard extends ConsumerWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              for (var i = 0; i < o.yes; i++) _VoteAvatar('yes', mineVote: false),
+              for (var i = 0; i < o.yes; i++)
+                _VoteAvatar('yes', mineVote: false),
               for (var i = 0; i < o.no; i++) _VoteAvatar('no', mineVote: false),
-              for (var i = 0; i < waiting; i++) _VoteAvatar('waiting', mineVote: false),
+              for (var i = 0; i < waiting; i++)
+                _VoteAvatar('waiting', mineVote: false),
             ],
           ),
           const SizedBox(height: 12),
@@ -471,7 +517,11 @@ class _VoteSheetState extends State<_VoteSheet> {
                 ),
               ],
             ),
-            Num(_bi('Pooled price {t}', 'Bei ya pamoja {t}', {'t': pts(o.totalPts)})),
+            Num(
+              _bi('Pooled price {t}', 'Bei ya pamoja {t}', {
+                't': pts(o.totalPts),
+              }),
+            ),
             const SizedBox(height: 12),
             Row(
               children: [
@@ -482,14 +532,19 @@ class _VoteSheetState extends State<_VoteSheet> {
             ),
             const SizedBox(height: 8),
             Text(
-              _bi('You can vote once. It cannot be changed.', 'Unaweza kupiga kura mara moja. Haiwezi kubadilishwa.'),
+              _bi(
+                'You can vote once. It cannot be changed.',
+                'Unaweza kupiga kura mara moja. Haiwezi kubadilishwa.',
+              ),
               style: tt.bodySmall,
             ),
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               child: FilledButton(
-                onPressed: choice == null ? null : () => Navigator.pop(context, choice),
+                onPressed: choice == null
+                    ? null
+                    : () => Navigator.pop(context, choice),
                 child: Text(_bi('Confirm vote', 'Thibitisha kura')),
               ),
             ),
@@ -568,12 +623,18 @@ class _ResultBar extends StatelessWidget {
           const SizedBox(width: 4),
           SizedBox(
             width: 48,
-            child: Text(label, style: tt.labelLarge, overflow: TextOverflow.ellipsis),
+            child: Text(
+              label,
+              style: tt.labelLarge,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
           Expanded(
             child: TweenAnimationBuilder<double>(
               tween: Tween(end: frac),
-              duration: reduceMotion(context) ? Duration.zero : const Duration(milliseconds: 500),
+              duration: reduceMotion(context)
+                  ? Duration.zero
+                  : const Duration(milliseconds: 500),
               builder: (_, v, _) => ClipRRect(
                 borderRadius: BorderRadius.circular(6),
                 child: LinearProgressIndicator(

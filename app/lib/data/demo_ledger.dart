@@ -381,7 +381,7 @@ class DemoLedger implements SokoApi {
         NewsItem(
           text: 'Soko is calm today. Prices are near their usual level.',
           day: _day,
-          kind: 'harvest',
+          kind: 'calm',
         ),
       );
     }

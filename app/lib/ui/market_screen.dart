@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/models.dart';
 import '../state/providers.dart';
+import '../state/news_stories.dart';
 import '../state/trade_book.dart';
 import '../l10n.dart';
 import 'kit/feel.dart';
@@ -124,6 +125,8 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
         children: [
           const _Tutorial(),
+          const _GoalCard(),
+          const _RadioTips(),
           Text(
             tr('Points are for play only. They can\'t be cashed out.'),
             style: tt.bodySmall,
@@ -953,6 +956,129 @@ class SaleResultView extends StatelessWidget {
           const SizedBox(height: 16),
           FilledButton(onPressed: onDone, child: Text(_bi('Done', 'Sawa'))),
         ],
+      ),
+    );
+  }
+}
+
+/// Radio Soko tips for today's bulletins and the real outcome on later days.
+/// Hints only, never promises. Shows nothing when there is nothing to say.
+class _RadioTips extends ConsumerWidget {
+  const _RadioTips();
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final list = ref.watch(storiesProvider);
+    if (list.isEmpty) return const SizedBox.shrink();
+    final lang = ref.watch(langProvider);
+    final tt = Theme.of(context).textTheme;
+    final tk = context.tokens;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: SokoCard(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.radio_outlined, size: 20, color: tk.ochre),
+                const SizedBox(width: 8),
+                Text(
+                  'Radio Soko',
+                  style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                ),
+              ],
+            ),
+            for (final v in list)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  v.now == null ? tipText(v.story, lang) : outcomeText(v, lang),
+                  style: tt.bodyMedium,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One small optional goal: first profit, then beat your best day.
+class _GoalCard extends ConsumerStatefulWidget {
+  const _GoalCard();
+  @override
+  ConsumerState<_GoalCard> createState() => _GoalCardState();
+}
+
+class _GoalCardState extends ConsumerState<_GoalCard> {
+  @override
+  Widget build(BuildContext context) {
+    final prefs = ref.watch(prefsProvider);
+    final g = ref.watch(gameProvider).value;
+    if (g == null || (prefs.getBool('goal_hidden') ?? false)) {
+      return const SizedBox.shrink();
+    }
+    final book = TradeBook(prefs);
+    final d = book.days(g.player.day);
+    final first = !book.hadProfit;
+    final tt = Theme.of(context).textTheme;
+    final tk = context.tokens;
+    final title = first
+        ? _bi('Make your first profit', 'Pata faida yako ya kwanza')
+        : _bi('Beat your best day', 'Shinda siku yako bora');
+    final sub = first
+        ? _bi(
+            'Buy at midday, then sell for more than you paid.',
+            'Nunua adhuhuri, kisha uze kwa zaidi ya ulivyolipa.',
+          )
+        : d.best <= 0
+        ? _bi(
+            'Sell above what you paid to set a best day.',
+            'Uza juu ya ulivyolipa uweke siku bora.',
+          )
+        : _bi(
+            'Today ${d.today >= 0 ? '+' : ''}${fmt(d.today)} of your best +${fmt(d.best)} pts.',
+            'Leo ${d.today >= 0 ? '+' : ''}${fmt(d.today)} kati ya bora yako +${fmt(d.best)} pts.',
+          );
+    final frac = first || d.best <= 0
+        ? null
+        : (d.today / d.best).clamp(0.0, 1.0);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: SokoCard(
+        padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+        child: Row(
+          children: [
+            Icon(Icons.flag_outlined, color: tk.ochre),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                  ),
+                  Text(sub, style: tt.bodySmall),
+                  if (frac != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: LinearProgressIndicator(value: frac),
+                    ),
+                ],
+              ),
+            ),
+            IconButton(
+              tooltip: _bi('Hide goal', 'Ficha lengo'),
+              icon: const Icon(Icons.close, size: 20),
+              onPressed: () {
+                prefs.setBool('goal_hidden', true);
+                setState(() {});
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

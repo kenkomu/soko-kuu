@@ -475,13 +475,7 @@ class _ReportTab extends ConsumerWidget {
 }
 
 class _Bar extends StatelessWidget {
-  const _Bar(
-    this.label,
-    this.value,
-    this.max,
-    this.color, {
-    this.icon,
-  });
+  const _Bar(this.label, this.value, this.max, this.color, {this.icon});
   final IconData? icon;
   final String label;
   static const suffix = ' pts';
@@ -628,12 +622,19 @@ class _BestDayCard extends ConsumerWidget {
     final beat = d.best > 0 && d.today >= d.best;
     final goal = d.prev != null && d.prev! > 0 ? d.prev! : d.best;
     final line = beat
-        ? _bi('Your best day so far. Hongera!', 'Siku yako bora hadi sasa. Hongera!')
+        ? _bi(
+            'Your best day so far. Hongera!',
+            'Siku yako bora hadi sasa. Hongera!',
+          )
         : goal > 0
-        ? _bi('${fmt(goal - d.today > 0 ? goal - d.today : 1)} pts more to beat ${d.prev != null && d.prev! > 0 ? 'yesterday' : 'your best day'}.',
-            'Pointi ${fmt(goal - d.today > 0 ? goal - d.today : 1)} zaidi kuishinda ${d.prev != null && d.prev! > 0 ? 'jana' : 'siku yako bora'}.')
-        : _bi('Sell something above what you paid to put a good day on the board.',
-            'Uza kitu juu ya ulichonunulia uanze siku nzuri.');
+        ? _bi(
+            '${fmt(goal - d.today > 0 ? goal - d.today : 1)} pts more to beat ${d.prev != null && d.prev! > 0 ? 'yesterday' : 'your best day'}.',
+            'Pointi ${fmt(goal - d.today > 0 ? goal - d.today : 1)} zaidi kuishinda ${d.prev != null && d.prev! > 0 ? 'jana' : 'siku yako bora'}.',
+          )
+        : _bi(
+            'Sell something above what you paid to put a good day on the board.',
+            'Uza kitu juu ya ulichonunulia uanze siku nzuri.',
+          );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -644,10 +645,31 @@ class _BestDayCard extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  Expanded(child: _kv(tt, _bi('Today', 'Leo'), sg(d.today), d.today < 0 ? t.ochre : t.up)),
+                  Expanded(
+                    child: _kv(
+                      tt,
+                      _bi('Today', 'Leo'),
+                      sg(d.today),
+                      d.today < 0 ? t.ochre : t.up,
+                    ),
+                  ),
                   if (d.prev != null)
-                    Expanded(child: _kv(tt, _bi('Yesterday', 'Jana'), sg(d.prev!), null)),
-                  Expanded(child: _kv(tt, _bi('Best day', 'Siku bora'), sg(d.best), null)),
+                    Expanded(
+                      child: _kv(
+                        tt,
+                        _bi('Yesterday', 'Jana'),
+                        sg(d.prev!),
+                        null,
+                      ),
+                    ),
+                  Expanded(
+                    child: _kv(
+                      tt,
+                      _bi('Best day', 'Siku bora'),
+                      sg(d.best),
+                      null,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 8),
@@ -663,7 +685,15 @@ class _BestDayCard extends ConsumerWidget {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Text(k, style: tt.bodySmall),
-      Text(v, style: tt.titleMedium?.copyWith(fontFamily: headingFont, fontWeight: FontWeight.w700, color: c, fontFeatures: tabular)),
+      Text(
+        v,
+        style: tt.titleMedium?.copyWith(
+          fontFamily: headingFont,
+          fontWeight: FontWeight.w700,
+          color: c,
+          fontFeatures: tabular,
+        ),
+      ),
     ],
   );
 }

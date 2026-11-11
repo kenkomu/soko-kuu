@@ -21,7 +21,11 @@ void main() {
     await t.pumpAndSettle();
     expect(find.textContaining('Bei za leo'), findsOneWidget);
     expect(find.textContaining('20,000 pts'), findsOneWidget);
+    expect(find.textContaining('cashed out'), findsOneWidget);
+    expect(find.text('Make your first profit'), findsOneWidget);
     await t.tap(find.text('Go to midday'));
+    await t.pumpAndSettle();
+    await t.ensureVisible(find.text('Tomato').first);
     await t.pumpAndSettle();
     await t.tap(find.text('Tomato').first);
     await t.pumpAndSettle();

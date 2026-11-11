@@ -280,14 +280,6 @@ class _BalanceHeaderState extends ConsumerState<_BalanceHeader> {
             ),
           ),
           if (open) _NewsStrip(g.news),
-          if (open)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(4, 0, 4, 4),
-              child: Text(
-                tr('Points are for play only. They can\'t be cashed out.'),
-                style: tt.bodySmall,
-              ),
-            ),
         ],
       ),
     );
@@ -446,16 +438,24 @@ class _SettingsSheet extends ConsumerWidget {
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: Text(_bi('Sound', 'Sauti')),
-              subtitle: Text(_bi('Off by default. A soft click after a sale.',
-                  'Imezimwa kwa kawaida. Mlio mdogo baada ya kuuza.')),
+              subtitle: Text(
+                _bi(
+                  'Off by default. A soft click after a sale.',
+                  'Imezimwa kwa kawaida. Mlio mdogo baada ya kuuza.',
+                ),
+              ),
               value: ref.watch(soundProvider),
               onChanged: (v) => ref.read(soundProvider.notifier).set(v),
             ),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: Text(_bi('Haptics', 'Mtetemo')),
-              subtitle: Text(_bi('A small buzz when you trade.',
-                  'Mtetemo mdogo unapofanya biashara.')),
+              subtitle: Text(
+                _bi(
+                  'A small buzz when you trade.',
+                  'Mtetemo mdogo unapofanya biashara.',
+                ),
+              ),
               value: ref.watch(hapticsProvider),
               onChanged: (v) => ref.read(hapticsProvider.notifier).set(v),
             ),

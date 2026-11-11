@@ -29,16 +29,26 @@ void main() {
     for (final lang in ['en', 'sw']) {
       gLang = lang;
       final r = TradeResult(
-        good: 'tomato', qty: 2, delta: -40, avgCost: 110, unitPrice: 90,
-        sameDay: true, firstSale: true,
+        good: 'tomato',
+        qty: 2,
+        delta: -40,
+        avgCost: 110,
+        unitPrice: 90,
+        sameDay: true,
+        firstSale: true,
       );
-      await t.pumpWidget(MaterialApp(
-        theme: buildTheme(),
-        home: Scaffold(body: SaleResultView(r, onDone: () {})),
-      ));
+      await t.pumpWidget(
+        MaterialApp(
+          theme: buildTheme(),
+          home: Scaffold(body: SaleResultView(r, onDone: () {})),
+        ),
+      );
       await t.pumpAndSettle();
       expect(find.textContaining('-40 pts'), findsOneWidget);
-      expect(find.textContaining(lang == 'en' ? 'first lesson' : 'Somo lako'), findsOneWidget);
+      expect(
+        find.textContaining(lang == 'en' ? 'first lesson' : 'Somo lako'),
+        findsOneWidget,
+      );
       expect(find.textContaining('Hasara'), findsOneWidget);
     }
     gLang = 'en';
