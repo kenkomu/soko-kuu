@@ -16,6 +16,7 @@ Future<ProviderContainer> boot(
   addTearDown(t.view.reset);
   SharedPreferences.setMockInitialValues({
     'age_ok': true,
+    'entry': 'live',
     'tut_done': true,
     'goal_hidden': true,
     ...seed,

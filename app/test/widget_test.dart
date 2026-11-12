@@ -19,6 +19,10 @@ void main() {
     expect(find.textContaining('18 or older'), findsOneWidget);
     await t.tap(find.text('I am 18 or older. Start'));
     await t.pumpAndSettle();
+    // Entry choice: Soko Run first, the live market second.
+    expect(find.text('Play Soko Run'), findsOneWidget);
+    await t.tap(find.text('Live market on NEAR'));
+    await t.pumpAndSettle();
     expect(find.textContaining('Bei za leo'), findsOneWidget);
     expect(find.textContaining('20,000 pts'), findsOneWidget);
     expect(find.textContaining('cashed out'), findsOneWidget);
@@ -36,7 +40,7 @@ void main() {
   });
 
   testWidgets('layout survives 200% text scale', (t) async {
-    SharedPreferences.setMockInitialValues({'age_ok': true});
+    SharedPreferences.setMockInitialValues({'age_ok': true, 'entry': 'live'});
     final prefs = await SharedPreferences.getInstance();
     t.view.physicalSize = const Size(360, 740);
     t.view.devicePixelRatio = 1;
@@ -65,6 +69,7 @@ void main() {
       addTearDown(t.view.reset);
       SharedPreferences.setMockInitialValues({
         'age_ok': true,
+        'entry': 'live',
         'stories':
             '[{"k":"ukame","d":1,"u":true,"m":true,"g":{"tomato":3000}}]',
       });

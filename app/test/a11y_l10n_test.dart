@@ -46,6 +46,7 @@ void main() {
     ) async {
       SharedPreferences.setMockInitialValues({
         'age_ok': true,
+        'entry': 'live',
         'lang': lang,
         'tut_done': false,
       });

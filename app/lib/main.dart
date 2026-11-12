@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'l10n.dart';
+import 'run/entry.dart';
+import 'run/soko_run_screen.dart';
 import 'state/providers.dart';
 import 'ui/gate.dart';
 import 'ui/home.dart';
@@ -39,9 +41,14 @@ class SokoKuuApp extends ConsumerWidget {
       localizationsDelegates: localeDelegates,
       home: !ok
           ? const AgeGate18()
-          : (ref.watch(loggedInProvider)
-                ? const HomeShell()
-                : const LoginScreen()),
+          : switch (ref.watch(entryProvider)) {
+              Entry.ask => const EntryChoice(),
+              Entry.run => const SokoRunScreen(),
+              Entry.live =>
+                ref.watch(loggedInProvider)
+                    ? const HomeShell()
+                    : const LoginScreen(),
+            },
     );
   }
 }

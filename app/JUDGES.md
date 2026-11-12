@@ -3,7 +3,7 @@
 A market-trading game set in a Kenyan soko. Play with points (pts), buy and sell produce, join a chama, take small credit.
 
 ## Try it in 90 seconds
-No account and no runner needed: the app opens in an offline demo by default. The step-by-step path with what to tap and what you should see is in [DEMO.md](DEMO.md). In short: confirm 18+, play as a guest, open a price to read "Why this price", go to midday, buy and sell, then look at Duka, Chama, Deni and Ripoti (the "What if? Fast-forward" preview is at the top of the Soko Report tab).
+No account and no runner needed: the app opens in an offline demo by default. The step-by-step path with what to tap and what you should see is in [DEMO.md](DEMO.md). After the 18+ gate you choose **Play Soko Run** (a 10-day offline run: listen to Radio Soko, buy low, sell high; nothing is sent anywhere) or **Live market on NEAR**. For the live market, in short: confirm 18+, play as a guest, open a price to read "Why this price", go to midday, buy and sell, then look at Duka, Chama, Deni and Ripoti (the "What if? Fast-forward" preview is at the top of the Soko Report tab).
 Screenshots of each screen are in `screenshots/` (listed in README.md).
 
 ## What the app never does

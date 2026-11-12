@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/models.dart';
 import '../l10n.dart';
+import '../run/entry.dart';
 import '../state/providers.dart';
 import 'chama_screen.dart';
 import 'credit_screen.dart';
@@ -408,7 +409,7 @@ class _SettingsSheet extends ConsumerWidget {
     final demo = ref.watch(demoModeProvider);
     final health = ref.watch(healthProvider);
     return SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -418,6 +419,18 @@ class _SettingsSheet extends ConsumerWidget {
               tr('Settings'),
               style: Theme.of(context).textTheme.titleLarge
                   ?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.directions_run),
+              title: Text(tr('Play Soko Run')),
+              subtitle: Text(
+                tr('Ten quick market days, offline. Nothing is sent anywhere.'),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                ref.read(entryProvider.notifier).set(Entry.run);
+              },
             ),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,

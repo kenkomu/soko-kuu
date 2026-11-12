@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/models.dart';
 import '../l10n.dart';
+import '../run/entry.dart';
 import '../state/providers.dart';
 import 'gate.dart' show IntroDots;
 import 'widgets.dart';
@@ -183,6 +184,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     child: Text(tr('Play the offline demo instead')),
                   ),
                 ],
+                TextButton(
+                  onPressed: () =>
+                      ref.read(entryProvider.notifier).set(Entry.run),
+                  child: Text(tr('Back to Soko Run')),
+                ),
               ],
             ),
           ),
