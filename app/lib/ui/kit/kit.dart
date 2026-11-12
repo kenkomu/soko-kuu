@@ -5,3 +5,4 @@ export 'money.dart';
 export 'motion.dart';
 export 'sparkline.dart';
 export 'toast.dart';
+export 'wordmark.dart';

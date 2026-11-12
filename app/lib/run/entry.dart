@@ -50,12 +50,7 @@ class EntryChoice extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Text(
-                          'Soko Kuu',
-                          style: tt.displaySmall?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
+                        const SokoWordmark(size: 34, header: true),
                         const SizedBox(height: 4),
                         Text(
                           tr('How do you want to play?'),

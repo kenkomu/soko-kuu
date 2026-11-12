@@ -191,6 +191,8 @@ class _SokoRunScreenState extends ConsumerState<SokoRunScreen>
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                const SokoWordmark(size: 22),
+                const SizedBox(height: 6),
                 Text(
                   'Soko Run',
                   style: TextStyle(

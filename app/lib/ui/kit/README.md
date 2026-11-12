@@ -16,6 +16,7 @@ Kit widgets take already-translated strings: pass `tr('...')`.
 - `StatusChip(String label, {tone=StatusTone.neutral, icon})`; tones good, bad, warn, info, neutral: `StatusChip(tr('Paid'), tone: StatusTone.good)`
 - `EmptyState(String text, {title, actionLabel, onAction})`: `EmptyState(tr('No loans yet.'), actionLabel: tr('Ask for credit'), onAction: f)`
 - `Skeleton({width, height=16, radius=8})`: `Skeleton(width: 120)`; pulse, static if reduced motion.
+- `SokoWordmark({size=30, header=false})`: "S[tomato]ko Kuu" in Fredoka bold, indigo on light, cream on dark; semantics label "Soko Kuu". Asset: `assets/brand/tomato_mark.png` (2.0x, 3.0x variants).
 - `toast(context, msg, {error=false})`: icon + text, plain one-sentence wording.
 - `reduceMotion(context)` helper.
 - Still in widgets.dart: `Num`, `SectionTitle`, `AsyncBody`, `pts`, `bpPercent`, `titleCase`.

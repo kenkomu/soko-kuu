@@ -29,11 +29,7 @@ class AgeGate18 extends ConsumerWidget {
                         children: [
                           IntroDots(step: 0),
                           const SizedBox(height: 16),
-                          Text(
-                            'Soko Kuu',
-                            style: Theme.of(context).textTheme.displaySmall
-                                ?.copyWith(fontWeight: FontWeight.w800),
-                          ),
+                          const SokoWordmark(size: 34, header: true),
                           const SizedBox(height: 4),
                           Text(
                             tr('Karibu sokoni. A market-trading game.'),
