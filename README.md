@@ -1,3 +1,5 @@
+<img src="app/web/icons/Icon-192.png" alt="Soko Kuu logo: a tomato with a rising price line" width="96">
+
 # Soko Kuu
 
 A closed-loop market game set in a Kenyan open-air market (soko), built for the NEAR Hackathon, Games track.
