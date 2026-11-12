@@ -1,6 +1,12 @@
 {
- "note": "Reference outputs of makeMarket() from the Soko Run prototype. Dart port must reproduce these exactly.",
- "dailySeed_2026_11_12": 1799991269,
+ "note": "Reference outputs of makeMarket() from the 5-day Soko Run prototype. The Dart port must reproduce these exactly.",
+ "rules": {
+  "days": 5,
+  "maxHold": 30,
+  "startCash": 1000,
+  "startEach": 2,
+  "wrongRumour": "no effect (eff=1)"
+ },
  "vectors": [
   {
    "seed": 1,
@@ -29,32 +35,7 @@
     {
      "tomato": 52,
      "maize": 30,
-     "sukuma": 83
-    },
-    {
-     "tomato": 25,
-     "maize": 29,
-     "sukuma": 38
-    },
-    {
-     "tomato": 51,
-     "maize": 32,
-     "sukuma": 77
-    },
-    {
-     "tomato": 54,
-     "maize": 64,
-     "sukuma": 41
-    },
-    {
-     "tomato": 53,
-     "maize": 29,
-     "sukuma": 21
-    },
-    {
-     "tomato": 54,
-     "maize": 14,
-     "sukuma": 43
+     "sukuma": 42
     }
    ],
    "rumours": [
@@ -81,36 +62,6 @@
      "mult": 0.5,
      "truth": false,
      "text": "Long rains in Limuru. Sukuma will flood the market tomorrow."
-    },
-    {
-     "target": "tomato",
-     "mult": 0.5,
-     "truth": true,
-     "text": "Bumper harvest in Kirinyaga. Tomatoes everywhere tomorrow."
-    },
-    {
-     "target": "sukuma",
-     "mult": 2,
-     "truth": true,
-     "text": "Road wash-out at Salgaa. Sukuma trucks are stuck."
-    },
-    {
-     "target": "maize",
-     "mult": 2,
-     "truth": true,
-     "text": "Drought in Kitale. Maize will be scarce tomorrow."
-    },
-    {
-     "target": "sukuma",
-     "mult": 0.5,
-     "truth": true,
-     "text": "Long rains in Limuru. Sukuma will flood the market tomorrow."
-    },
-    {
-     "target": "maize",
-     "mult": 0.5,
-     "truth": true,
-     "text": "The NCPB store is selling off maize tomorrow."
     }
    ]
   },
@@ -142,31 +93,6 @@
      "tomato": 50,
      "maize": 31,
      "sukuma": 78
-    },
-    {
-     "tomato": 96,
-     "maize": 31,
-     "sukuma": 38
-    },
-    {
-     "tomato": 48,
-     "maize": 29,
-     "sukuma": 19
-    },
-    {
-     "tomato": 54,
-     "maize": 59,
-     "sukuma": 43
-    },
-    {
-     "tomato": 40,
-     "maize": 24,
-     "sukuma": 34
-    },
-    {
-     "tomato": 43,
-     "maize": 24,
-     "sukuma": 33
     }
    ],
    "rumours": [
@@ -193,36 +119,6 @@
      "mult": 2,
      "truth": true,
      "text": "Frost in Limuru hit the sukuma farms. Little will arrive tomorrow."
-    },
-    {
-     "target": "tomato",
-     "mult": 2,
-     "truth": true,
-     "text": "Wedding season in town. Hotels want tomatoes tomorrow."
-    },
-    {
-     "target": "sukuma",
-     "mult": 0.5,
-     "truth": true,
-     "text": "Long rains in Limuru. Sukuma will flood the market tomorrow."
-    },
-    {
-     "target": "maize",
-     "mult": 0.5,
-     "truth": false,
-     "text": "Glut from Trans Nzoia. Maize sellers will cut prices tomorrow."
-    },
-    {
-     "target": "all",
-     "mult": 0.8,
-     "truth": true,
-     "text": "Fuel price down. Cheap transport means lower prices tomorrow."
-    },
-    {
-     "target": "all",
-     "mult": 1.2,
-     "truth": false,
-     "text": "Fuel price up at the pump. Everything costs more to bring in tomorrow."
     }
    ]
   },
@@ -246,7 +142,7 @@
      "sukuma": 20
     },
     {
-     "tomato": 26,
+     "tomato": 51,
      "maize": 31,
      "sukuma": 42
     },
@@ -254,31 +150,6 @@
      "tomato": 52,
      "maize": 56,
      "sukuma": 39
-    },
-    {
-     "tomato": 68,
-     "maize": 39,
-     "sukuma": 59
-    },
-    {
-     "tomato": 23,
-     "maize": 30,
-     "sukuma": 43
-    },
-    {
-     "tomato": 50,
-     "maize": 31,
-     "sukuma": 78
-    },
-    {
-     "tomato": 57,
-     "maize": 33,
-     "sukuma": 46
-    },
-    {
-     "tomato": 24,
-     "maize": 32,
-     "sukuma": 43
     }
    ],
    "rumours": [
@@ -305,36 +176,6 @@
      "mult": 2,
      "truth": true,
      "text": "Maize flour is short in the shops. Buyers will rush tomorrow."
-    },
-    {
-     "target": "all",
-     "mult": 0.7,
-     "truth": false,
-     "text": "Matatu strike tomorrow. Few buyers will reach the soko."
-    },
-    {
-     "target": "tomato",
-     "mult": 0.5,
-     "truth": true,
-     "text": "Tomato lorries from Loitokitok arrive together tomorrow."
-    },
-    {
-     "target": "sukuma",
-     "mult": 2,
-     "truth": true,
-     "text": "Road wash-out at Salgaa. Sukuma trucks are stuck."
-    },
-    {
-     "target": "all",
-     "mult": 1.2,
-     "truth": true,
-     "text": "Fuel price up at the pump. Everything costs more to bring in tomorrow."
-    },
-    {
-     "target": "tomato",
-     "mult": 0.5,
-     "truth": true,
-     "text": "Bumper harvest in Kirinyaga. Tomatoes everywhere tomorrow."
     }
    ]
   },
@@ -355,7 +196,7 @@
     {
      "tomato": 53,
      "maize": 30,
-     "sukuma": 20
+     "sukuma": 39
     },
     {
      "tomato": 54,
@@ -366,31 +207,6 @@
      "tomato": 103,
      "maize": 30,
      "sukuma": 39
-    },
-    {
-     "tomato": 51,
-     "maize": 32,
-     "sukuma": 19
-    },
-    {
-     "tomato": 105,
-     "maize": 30,
-     "sukuma": 43
-    },
-    {
-     "tomato": 51,
-     "maize": 31,
-     "sukuma": 75
-    },
-    {
-     "tomato": 52,
-     "maize": 16,
-     "sukuma": 41
-    },
-    {
-     "tomato": 61,
-     "maize": 35,
-     "sukuma": 48
     }
    ],
    "rumours": [
@@ -417,24 +233,45 @@
      "mult": 2,
      "truth": true,
      "text": "Drought in Kiambu. Few tomato lorries will reach the soko tomorrow."
+    }
+   ]
+  },
+  {
+   "seed": 1783213650,
+   "tutorial": false,
+   "prices": [
+    {
+     "tomato": 50,
+     "maize": 29,
+     "sukuma": 42
     },
     {
-     "target": "sukuma",
-     "mult": 0.5,
-     "truth": true,
-     "text": "Long rains in Limuru. Sukuma will flood the market tomorrow."
+     "tomato": 53,
+     "maize": 28,
+     "sukuma": 86
     },
     {
-     "target": "tomato",
-     "mult": 0.5,
-     "truth": false,
-     "text": "Tomato lorries from Loitokitok arrive together tomorrow."
+     "tomato": 54,
+     "maize": 14,
+     "sukuma": 43
     },
+    {
+     "tomato": 53,
+     "maize": 31,
+     "sukuma": 39
+    },
+    {
+     "tomato": 50,
+     "maize": 32,
+     "sukuma": 37
+    }
+   ],
+   "rumours": [
     {
      "target": "sukuma",
      "mult": 2,
      "truth": true,
-     "text": "Frost in Limuru hit the sukuma farms. Little will arrive tomorrow."
+     "text": "Road wash-out at Salgaa. Sukuma trucks are stuck."
     },
     {
      "target": "maize",
@@ -443,10 +280,16 @@
      "text": "The NCPB store is selling off maize tomorrow."
     },
     {
-     "target": "all",
-     "mult": 1.2,
-     "truth": true,
-     "text": "Fuel price up at the pump. Everything costs more to bring in tomorrow."
+     "target": "tomato",
+     "mult": 2,
+     "truth": false,
+     "text": "Drought in Kiambu. Few tomato lorries will reach the soko tomorrow."
+    },
+    {
+     "target": "sukuma",
+     "mult": 0.5,
+     "truth": false,
+     "text": "Every farm in Kikuyu is cutting sukuma at once. Expect plenty tomorrow."
     }
    ]
   }

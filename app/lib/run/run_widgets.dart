@@ -44,17 +44,22 @@ String revealText(RunGame g) {
       : tr('Radio was wrong this time.');
   final String what;
   if (r.isAll) {
-    what = g.prices['tomato']! > rv.old['tomato']!
+    // A wrong rumour has no effect: prices stay near their normal level.
+    what = !r.truth
+        ? tr('Prices stayed near normal.')
+        : g.prices['tomato']! > rv.old['tomato']!
         ? tr('Prices went up.')
         : tr('Prices went down.');
   } else {
     final now = g.prices[r.target]!, was = rv.old[r.target]!;
     final p = {'g': runGoodName(r.target), 'a': fmt(was), 'b': fmt(now)};
-    what = now > was
+    what = now == was
+        ? tr('{g} stayed at {a}.', p)
+        : !r.truth
+        ? tr('{g} stayed near {b}.', p)
+        : now > was
         ? tr('{g} rose from {a} to {b}.', p)
-        : now < was
-        ? tr('{g} fell from {a} to {b}.', p)
-        : tr('{g} stayed at {a}.', p);
+        : tr('{g} fell from {a} to {b}.', p);
   }
   return '$head $what';
 }
@@ -153,7 +158,7 @@ class RunTopBar extends StatelessWidget {
               runSpacing: 4,
               children: [
                 Text(
-                  tr('Day {d} of 10', {'d': g.day}),
+                  tr('Day {d} of {n}', {'d': g.day, 'n': kDays}),
                   style: tt.bodyMedium?.copyWith(
                     color: on.withValues(alpha: .92),
                     fontWeight: FontWeight.w700,
@@ -296,7 +301,7 @@ class RunRevealBanner extends StatelessWidget {
   }
 }
 
-/// Radio Soko card: tomorrow's news, or the closing notice on day 10.
+/// Radio Soko card: tomorrow's news, or the closing notice on the last day.
 class RunRadioCard extends StatelessWidget {
   const RunRadioCard(
     this.g, {

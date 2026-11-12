@@ -71,7 +71,7 @@ class EntryChoice extends ConsumerWidget {
                         const SizedBox(height: 6),
                         Text(
                           tr(
-                            'Ten quick market days on this phone. No sign-in, nothing is sent anywhere.',
+                            'Five quick market days on this phone. No sign-in, nothing is sent anywhere.',
                           ),
                           style: muted,
                         ),

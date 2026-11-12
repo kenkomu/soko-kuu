@@ -17,14 +17,16 @@ Build with the runner's HTTPS origin baked in (the app reads `API_BASE` at build
 
 For a project page the base href is `/<repo>/` (leading and trailing slash). Copy everything inside `build/web/` to the
 Pages branch or `docs/` folder (index.html, main.dart.js, flutter.js, flutter_bootstrap.js, canvaskit/, assets/, icons/,
-manifest.json, favicon.png). `./build_release.sh` builds web and APK in one go (`PAGES_BASE_HREF=/<repo>/ ./build_release.sh`; `API_BASE` defaults to https://app.chukua.xyz) and rewrites the built page's CSP so `connect-src` is only `'self'` plus the runner origin. The source `web/index.html` keeps localhost for debug runs.
+manifest.json, favicon*.png). `./build_release.sh` builds web and APK in one go (`PAGES_BASE_HREF=/<repo>/ ./build_release.sh`; `API_BASE` defaults to https://app.chukua.xyz) and rewrites the built page's CSP so `connect-src` is only `'self'` plus the runner origin. The source `web/index.html` keeps localhost for debug runs.
 The runner must answer CORS for the Pages origin (`https://<user>.github.io`).
 
 ### Point the app at a runner
 `API_BASE` is fixed at build time. To change runner, rebuild with a new `--dart-define=API_BASE=https://app.chukua.xyz`
 and redeploy. The runner needs `CORS_ORIGINS=https://<user>.github.io` (exact origin, no path). Check with
 `runner/scripts/cors_check.sh https://<user>.github.io`.
-Release APK: `flutter build apk --release --dart-define=API_BASE=https://app.chukua.xyz` (debug signing; sideload only).
+Release APKs: `./build_release.sh apk` builds one obfuscated APK per CPU type (about 16-21 MB each; share
+`app-arm64-v8a-release.apk`, which fits almost every recent phone) with debug symbols in `build/debug-info`.
+`./build_release.sh appbundle` makes the Play Store `.aab`. Debug signing; sideload only. Never share the debug APK (about 200 MB).
 
 ## Screenshots (offline demo, phone width, English unless noted)
 Captured from a local profile web build in demo mode (`--dart-define=DEMO=true`) with headless Chromium.

@@ -81,7 +81,7 @@ void main() {
     await t.tap(find.text('Play your first market'));
     await t.pumpAndSettle();
 
-    expect(find.text('Day 1 of 10'), findsOneWidget);
+    expect(find.text('Day 1 of $kDays'), findsOneWidget);
     expect(find.text('First market'), findsOneWidget);
     expect(find.text('1,000 pts'), findsOneWidget);
     expect(
@@ -100,14 +100,14 @@ void main() {
 
     await tapKey(t, buyBtn('tomato'), times: 3);
     expect(find.text('835 pts'), findsOneWidget); // 1,000 - 3 x 55
-    expect(find.textContaining('You have 6'), findsOneWidget);
+    expect(find.textContaining('You have 5'), findsOneWidget); // 2 + 3
 
     await t.ensureVisible(nextBtn());
     await t.tap(nextBtn());
     await t.pump();
     expect(priceShown(t, 'tomato'), '54'); // counts up from yesterday's price
     await t.pumpAndSettle();
-    expect(find.text('Day 2 of 10'), findsOneWidget);
+    expect(find.text('Day 2 of $kDays'), findsOneWidget);
     expect(
       find.text('Radio was right. Tomato rose from 54 to 100.'),
       findsOneWidget,
@@ -120,15 +120,15 @@ void main() {
       findsOneWidget,
     );
 
-    await tapKey(t, sellBtn('tomato'), times: 6);
+    await tapKey(t, sellBtn('tomato'), times: 5);
     expect(sellOn(t, 'tomato'), isFalse);
     await tapKey(t, find.byTooltip('Close hint'));
     expect(find.textContaining('You read it right'), findsNothing);
 
-    for (var d = 2; d < 10; d++) {
+    for (var d = 2; d < kDays; d++) {
       await tapKey(t, nextBtn());
     }
-    expect(find.text('Day 10 of 10'), findsOneWidget);
+    expect(find.text('Day $kDays of $kDays'), findsOneWidget);
     expect(find.text('Close the market'), findsOneWidget);
     expect(buyOn(t, 'maize'), isFalse);
     expect(sellOn(t, 'maize'), isFalse);
@@ -140,10 +140,10 @@ void main() {
       g.buy('tomato');
     }
     g.nextDay();
-    for (var i = 0; i < 6; i++) {
+    for (var i = 0; i < 5; i++) {
       g.sell('tomato');
     }
-    for (var d = 2; d < 10; d++) {
+    for (var d = 2; d < kDays; d++) {
       g.nextDay();
     }
     final score = g.close();
@@ -151,7 +151,10 @@ void main() {
     expect(find.text(fmt(score)), findsOneWidget);
     expect(find.text(runTitle(score)), findsOneWidget);
     expect(find.text('New best score!'), findsOneWidget);
-    expect(find.text('Right ${g.rightCount} of 9 times.'), findsOneWidget);
+    expect(
+      find.text('Right ${g.rightCount} of ${kDays - 1} times.'),
+      findsOneWidget,
+    );
     expect(
       find.text(
         'A player who never traded ended with ${fmt(g.lazyScore)} pts.',
@@ -159,7 +162,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.textContaining('Sold 6 tomatoes on day 2 at 100'),
+      find.textContaining('Sold 5 tomatoes on day 2 at 100'),
       findsOneWidget,
     );
     final head = 'Soko Run \u00B7 ${fmt(score)} pts \u00B7 ${runTitle(score)}';
@@ -232,19 +235,21 @@ void main() {
     expect(next, isNot(morning));
   });
 
-  testWidgets('buttons: nothing to sell, 20 held, no cash, day 10', (t) async {
+  testWidgets('buttons: nothing to sell, 30 held, no cash, last day', (
+    t,
+  ) async {
     await bootRun(t, prefs: {'run.played': true});
     await tapKey(t, find.text('Play a new market'));
     expect(find.text('Practice'), findsOneWidget);
 
-    await tapKey(t, sellBtn('tomato'), times: 3);
+    await tapKey(t, sellBtn('tomato'), times: kStartEach);
     expect(sellOn(t, 'tomato'), isFalse); // nothing to sell
     expect(buyOn(t, 'tomato'), isTrue);
 
     await tapKey(t, buyBtn('maize'), times: kMaxHold - kStartEach);
-    expect(buyOn(t, 'maize'), isFalse); // 20 held
+    expect(buyOn(t, 'maize'), isFalse); // 30 held
     expect(sellOn(t, 'maize'), isTrue);
-    expect(find.textContaining('You have 20 (full)'), findsOneWidget);
+    expect(find.textContaining('You have $kMaxHold (full)'), findsOneWidget);
 
     var bought = 0;
     while (buyOn(t, 'tomato')) {
@@ -253,7 +258,7 @@ void main() {
     }
     expect(bought, lessThan(kMaxHold)); // stopped by cash, not by the limit
     final g = RunGame(makeMarket(12345));
-    for (var i = 0; i < 3; i++) {
+    for (var i = 0; i < kStartEach; i++) {
       g.sell('tomato');
     }
     while (g.buy('maize')) {}
@@ -266,8 +271,8 @@ void main() {
       await tapKey(t, nextBtn());
     }
     for (final x in runGoods) {
-      expect(buyOn(t, x.id), isFalse, reason: 'day 10 buy ${x.id}');
-      expect(sellOn(t, x.id), isFalse, reason: 'day 10 sell ${x.id}');
+      expect(buyOn(t, x.id), isFalse, reason: 'last day buy ${x.id}');
+      expect(sellOn(t, x.id), isFalse, reason: 'last day sell ${x.id}');
     }
   });
 
@@ -301,6 +306,32 @@ void main() {
         .textSpan!
         .toPlainText();
     expect(after, startsWith('You have $n')); // stopped on release
+  });
+
+  testWidgets('a wrong rumour: "Radio was wrong this time. X stayed near N."', (
+    t,
+  ) async {
+    var seed = 1;
+    while (true) {
+      final r = makeMarket(seed).rumourOn(1);
+      if (!r.truth && !r.isAll) break;
+      seed++;
+    }
+    await bootRun(t, prefs: {'run.played': true}, seed: seed);
+    await tapKey(t, find.text('Play a new market'));
+    await tapKey(t, nextBtn());
+    final m = makeMarket(seed);
+    final r = m.rumourOn(1);
+    final name = r.target[0].toUpperCase() + r.target.substring(1);
+    final was = m.on(1)[r.target]!, now = m.on(2)[r.target]!;
+    expect(
+      find.text(
+        now == was
+            ? 'Radio was wrong this time. $name stayed at $now.'
+            : 'Radio was wrong this time. $name stayed near $now.',
+      ),
+      findsOneWidget,
+    );
   });
 
   for (final lang in ['en', 'sw']) {

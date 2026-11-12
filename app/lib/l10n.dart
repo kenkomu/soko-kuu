@@ -504,17 +504,17 @@ const sw = <String, String>{
   'Mgeni': 'Mgeni',
   'Mfanyabiashara': 'Mfanyabiashara',
   'Mzoefu': 'Mzoefu',
-  // Soko Run (offline 10-day mode) and the entry choice. Check with a
+  // Soko Run (offline 5-day mode) and the entry choice. Check with a
   // Kenyan speaker. Radio Soko news lines in lib/run stay English for now.
   'How do you want to play?': 'Ungependa kucheza vipi?',
   'Play Soko Run': 'Cheza Soko Run',
-  'Ten quick market days on this phone. No sign-in, nothing is sent anywhere.': 'Siku kumi za soko kwa haraka kwenye simu hii. Hakuna kuingia, hakuna kinachotumwa popote.',
+  'Five quick market days on this phone. No sign-in, nothing is sent anywhere.': 'Siku tano za soko kwa haraka kwenye simu hii. Hakuna kuingia, hakuna kinachotumwa popote.',
   'Live market on NEAR': 'Soko la moja kwa moja kwenye NEAR',
   'The shared market with chama, credit and other players.':
       'Soko la pamoja lenye chama, mikopo na wachezaji wengine.',
   'You can switch later.': 'Unaweza kubadilisha baadaye.',
-  'Ten quick market days, offline. Nothing is sent anywhere.':
-      'Siku kumi za soko kwa haraka, bila mtandao. Hakuna kinachotumwa popote.',
+  'Five quick market days, offline. Nothing is sent anywhere.':
+      'Siku tano za soko kwa haraka, bila mtandao. Hakuna kinachotumwa popote.',
   'Back to Soko Run': 'Rudi kwenye Soko Run',
   'Tomato': 'Nyanya',
   'Maize': 'Mahindi',
@@ -522,16 +522,16 @@ const sw = <String, String>{
   'tomatoes': 'nyanya',
   'maize': 'mahindi',
   'sukuma': 'sukuma wiki',
-  'Ten market days. Listen to Radio Soko, buy low, sell high.': 'Siku kumi za soko. Sikiliza Radio Soko, nunua kwa bei ya chini, uza kwa bei ya juu.',
+  'Five market days. Listen to Radio Soko, buy low, sell high.': 'Siku tano za soko. Sikiliza Radio Soko, nunua kwa bei ya chini, uza kwa bei ya juu.',
   'Play your first market': 'Cheza soko lako la kwanza',
   'Play a new market': 'Cheza soko jipya',
   'Daily Soko #{n}': 'Soko la Leo #{n}',
   'Your best: {n} pts.': 'Bora yako: {n} pts.',
-  'The Daily Soko is the same 10 days for everyone today.':
-      'Soko la Leo ni siku 10 zilezile kwa kila mtu leo.',
+  'The Daily Soko is the same 5 days for everyone today.':
+      'Soko la Leo ni siku 5 zilezile kwa kila mtu leo.',
   'Sound': 'Sauti',
   'Haptics': 'Mtetemo',
-  'Day {d} of 10': 'Siku {d} kati ya 10',
+  'Day {d} of {n}': 'Siku {d} kati ya {n}',
   'Daily #{n}': 'Leo #{n}',
   'First market': 'Soko la kwanza',
   'Practice': 'Mazoezi',
@@ -544,6 +544,8 @@ const sw = <String, String>{
   '{g} rose from {a} to {b}.': 'Bei ya {g} imepanda kutoka {a} hadi {b}.',
   '{g} fell from {a} to {b}.': 'Bei ya {g} imeshuka kutoka {a} hadi {b}.',
   '{g} stayed at {a}.': 'Bei ya {g} imebaki {a}.',
+  '{g} stayed near {b}.': 'Bei ya {g} imebaki karibu na {b}.',
+  'Prices stayed near normal.': 'Bei zimebaki karibu na kawaida.',
   'Last day': 'Siku ya mwisho',
   "The soko closes tonight. Everything in your sack is sold at today's prices.": 'Soko linafungwa leo usiku. Kila kitu kwenye gunia lako kinauzwa kwa bei za leo.',
   'Radio Soko is right about 3 times in 4.':

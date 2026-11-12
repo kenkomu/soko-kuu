@@ -425,7 +425,9 @@ class _SettingsSheet extends ConsumerWidget {
               leading: const Icon(Icons.directions_run),
               title: Text(tr('Play Soko Run')),
               subtitle: Text(
-                tr('Ten quick market days, offline. Nothing is sent anywhere.'),
+                tr(
+                  'Five quick market days, offline. Nothing is sent anywhere.',
+                ),
               ),
               onTap: () {
                 Navigator.pop(context);

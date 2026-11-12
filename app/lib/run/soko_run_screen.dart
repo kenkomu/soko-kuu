@@ -27,7 +27,8 @@ enum _View { start, run, end }
 
 /// Soko Run: a self-contained offline mode. It never calls the runner or the
 /// chain; its points are separate from the live game's points. Best scores
-/// live in prefs as `best.run` and `best.daily.N`.
+/// live in prefs as `best.run5` and `best.daily5.N` (5-day rules; the old
+/// 10-day bests under `best.run` / `best.daily.N` are not mixed in).
 class SokoRunScreen extends ConsumerStatefulWidget {
   const SokoRunScreen({super.key});
 
@@ -119,8 +120,8 @@ class _SokoRunScreenState extends ConsumerState<SokoRunScreen>
     final g = _g!;
     final score = g.close();
     final key = g.mode == RunMode.daily
-        ? 'best.daily.${g.dailyNo}'
-        : 'best.run';
+        ? 'best.daily5.${g.dailyNo}'
+        : 'best.run5';
     final prev = _prefs.getInt(key);
     _newBest = prev == null || score > prev;
     _best = prev == null ? score : math.max(prev, score);
@@ -170,7 +171,7 @@ class _SokoRunScreenState extends ConsumerState<SokoRunScreen>
   Widget _startView(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final t = context.tokens;
-    final best = _prefs.getInt('best.run');
+    final best = _prefs.getInt('best.run5');
     final small = TextStyle(fontSize: 13, color: t.muted);
     final gear = IconButton(
       tooltip: tr('Settings'),
@@ -206,7 +207,7 @@ class _SokoRunScreenState extends ConsumerState<SokoRunScreen>
                 const SizedBox(height: 14),
                 Text(
                   tr(
-                    'Ten market days. Listen to Radio Soko, buy low, sell high.',
+                    'Five market days. Listen to Radio Soko, buy low, sell high.',
                   ),
                   style: const TextStyle(fontSize: 17, height: 1.4),
                 ),
@@ -253,7 +254,7 @@ class _SokoRunScreenState extends ConsumerState<SokoRunScreen>
                 const SizedBox(height: 14),
                 Text(
                   '${best != null ? '${tr('Your best: {n} pts.', {'n': fmt(best)})} ' : ''}'
-                  '${tr('The Daily Soko is the same 10 days for everyone today.')}',
+                  '${tr('The Daily Soko is the same 5 days for everyone today.')}',
                   style: small,
                 ),
                 const SizedBox(height: 8),

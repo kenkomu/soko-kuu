@@ -1,4 +1,4 @@
-/// Soko Run: a 10-day offline market run. Pure Dart: no Flutter, no network,
+/// Soko Run: a 5-day offline market run. Pure Dart: no Flutter, no network,
 /// no chain. Points here are play points for this mode only and are never
 /// sent anywhere.
 ///
@@ -8,10 +8,10 @@
 /// Android and dart2js (where ints are doubles) give the same numbers.
 library;
 
-const int kMaxHold = 20;
+const int kMaxHold = 30;
 const int kStartCash = 1000;
-const int kStartEach = 3;
-const int kDays = 10;
+const int kStartEach = 2;
+const int kDays = 5;
 
 /// Day 1 of the Daily Soko: 2026-11-12, UTC.
 final DateTime kDailyStart = DateTime.utc(2026, 11, 12);
@@ -133,18 +133,19 @@ class RunMarket {
   final int seed;
   final bool tutorial;
 
-  /// prices[0] is day 1 ... prices[9] is day 10.
+  /// prices[0] is day 1 ... prices[kDays - 1] is the last day.
   final List<Map<String, int>> prices;
 
-  /// rumours[0] is heard on day 1 (about day 2) ... rumours[8] on day 9.
+  /// rumours[0] is heard on day 1 (about day 2) ... one per day but the last.
   final List<Rumour> rumours;
 
   Map<String, int> on(int day) => prices[day - 1];
   Rumour rumourOn(int day) => rumours[day - 1];
 }
 
-/// Prices for 10 days and 9 rumours from [seed]. Tutorial: the day-1 rumour
-/// is always "tomato x2" and always true.
+/// Prices for [kDays] days and one rumour per night from [seed]. A wrong
+/// rumour has no effect on the price. Tutorial: the day-1 rumour is always
+/// "tomato x2" and always true.
 RunMarket makeMarket(int seed, {bool tutorial = false}) {
   final rng = Mulberry32(seed);
   double r() => rng.next();
@@ -159,7 +160,7 @@ RunMarket makeMarket(int seed, {bool tutorial = false}) {
   ];
   final rumours = <Rumour>[];
   String? last;
-  for (var d = 1; d <= 9; d++) {
+  for (var d = 1; d <= kDays - 1; d++) {
     String target;
     double mult;
     final forced = tutorial && d == 1;
@@ -182,7 +183,7 @@ RunMarket makeMarket(int seed, {bool tutorial = false}) {
     final key = target == 'all' ? 'all$mult' : '$target${mult > 1 ? '+' : '-'}';
     final lines = runNews[key]!;
     final text = lines[(r() * lines.length).floor()];
-    final eff = truth ? mult : 1 / mult;
+    final eff = truth ? mult : 1.0;
     prices.add({
       for (final g in runGoods)
         g.id: price(g.base, target == 'all' || target == g.id ? eff : 1),
@@ -205,11 +206,11 @@ int dailyNumber(DateTime now) =>
     (now.toUtc().difference(kDailyStart).inMilliseconds / 86400000).floor() + 1;
 
 /// Title for a final score. The titles are Swahili in both languages.
-String runTitle(int score) => score >= 4000
+String runTitle(int score) => score >= 3400
     ? 'Tajiri wa Soko'
-    : score >= 2800
+    : score >= 2200
     ? 'Mfanyabiashara'
-    : score >= 1600
+    : score >= 1400
     ? 'Mchuuzi'
     : 'Mgeni';
 
@@ -353,7 +354,7 @@ class RunGame {
     return rv;
   }
 
-  /// Day 10: sells everything at today's price with no fee. Returns the score.
+  /// Last day: sells everything at today's price with no fee. Returns the score.
   int close() {
     if (!closed) {
       for (final g in runGoods) {
