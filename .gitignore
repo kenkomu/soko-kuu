@@ -7,3 +7,4 @@ build/
 .env
 secrets/
 node_modules/
+social/posted.log
