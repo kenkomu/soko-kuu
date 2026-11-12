@@ -101,7 +101,9 @@ class StallScreen extends ConsumerWidget {
                             context: context,
                             isScrollControlled: true,
                             showDragHandle: true,
-                            builder: (_) => TradeSheet(best),
+                            builder: (_) => TradeSheet(
+                              g.prices.where((p) => p.good == e.key).toList(),
+                            ),
                           ),
                           child: Text(tr('Sell')),
                         ),

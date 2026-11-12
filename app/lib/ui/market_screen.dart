@@ -51,13 +51,41 @@ class MerchantChip extends StatelessWidget {
   }
 }
 
-void _openTrade(BuildContext context, PriceRow p, [int qty = 1]) =>
+void _openTrade(BuildContext context, List<PriceRow> rows) =>
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (_) => TradeSheet(p, initialQty: qty),
+      builder: (_) => TradeSheet(rows),
     );
+
+/// Cheapest ask across merchants (first wins a tie).
+PriceRow cheapestAsk(List<PriceRow> rows) =>
+    rows.reduce((a, b) => b.ask < a.ask ? b : a);
+
+/// Highest bid across merchants (first wins a tie).
+PriceRow highestBid(List<PriceRow> rows) =>
+    rows.reduce((a, b) => b.bid > a.bid ? b : a);
+
+/// Today against yesterday, summed over merchants that have both days.
+/// Positive = dearer today.
+int trendOf(List<PriceRow> rows) {
+  var d = 0;
+  for (final r in rows) {
+    final h = r.history;
+    if (h.length >= 2) d += h.last - h[h.length - 2];
+  }
+  return d;
+}
+
+/// Players' goods in a stable order: market order of first appearance.
+Map<String, List<PriceRow>> groupByGood(List<PriceRow> prices) {
+  final m = <String, List<PriceRow>>{};
+  for (final p in prices) {
+    (m[p.good] ??= []).add(p);
+  }
+  return m;
+}
 
 class MarketScreen extends ConsumerStatefulWidget {
   const MarketScreen({super.key});
@@ -125,6 +153,7 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
         ), // a short list: keep every row built
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
         children: [
+          const _SackStrip(),
           const _TopCard(),
           Text(
             tr('Points are for play only. They can\'t be cashed out.'),
@@ -132,22 +161,16 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text(
-                    tr('Bei za leo (today\'s prices)'),
-                    style: tt.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+                Text(
+                  tr('Bei za leo (today\'s prices)'),
+                  style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                 ),
-                Flexible(
-                  child: Text(
-                    _fresh(),
-                    textAlign: TextAlign.end,
-                    style: tt.bodySmall?.copyWith(color: context.tokens.muted),
-                  ),
+                Text(
+                  _fresh(),
+                  style: tt.bodySmall?.copyWith(color: context.tokens.muted),
                 ),
               ],
             ),
@@ -159,8 +182,8 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
                 'Bei bado hazijatangazwa. Vuta chini kusasisha.',
               ),
             ),
-          for (final p in gs.prices) ...[
-            _PriceRowTile(p),
+          for (final e in groupByGood(gs.prices).entries) ...[
+            _GoodRow(e.value),
             const SizedBox(height: 8),
           ],
         ],
@@ -169,146 +192,205 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
   }
 }
 
-class _PriceRowTile extends ConsumerStatefulWidget {
-  const _PriceRowTile(this.p);
-  final PriceRow p;
-  @override
-  ConsumerState<_PriceRowTile> createState() => _PriceRowTileState();
-}
-
-class _PriceRowTileState extends ConsumerState<_PriceRowTile> {
-  int qty = 1;
-
+/// One clean row per good: icon, name, best buy and sell prices, a small
+/// arrow against yesterday. The whole row opens the details sheet.
+class _GoodRow extends StatelessWidget {
+  const _GoodRow(this.rows);
+  final List<PriceRow> rows;
   @override
   Widget build(BuildContext context) {
-    final p = widget.p;
-    final lang = ref.watch(langProvider);
     final tt = Theme.of(context).textTheme;
-    final muted = context.tokens.muted;
-    final h = p.history;
-    final delta = h.length >= 2 ? h.last - h[h.length - 2] : 0;
-    final maxQ = p.stock.clamp(1, 50);
-    final q = qty.clamp(1, maxQ);
-    final name = goodName(p.good);
-    return SokoCard(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          PressSquish(
-            onTap: () => _openTrade(context, p, q),
-            semanticLabel: _bi(
-              '{g} from {m}, {p} pts each. Open to buy or sell.',
-              '{g} kutoka {m}, pointi {p} kila kimoja. Fungua kununua au kuuza.',
-              {'g': name, 'm': titleCase(p.merchant), 'p': fmt(p.ask)},
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                MerchantChip(p.merchant),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          GoodIcon(p.good, size: 28),
-                          const SizedBox(width: 6),
-                          Flexible(
-                            child: Text(
-                              name,
-                              style: tt.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      Text(
-                        tr('{m} · {n} left', {
-                          'm': titleCase(p.merchant),
-                          'n': p.stock,
-                        }),
-                        style: tt.bodySmall?.copyWith(color: muted),
-                      ),
-                      Text(
-                        tr('pts / unit'),
-                        style: tt.bodySmall?.copyWith(color: muted),
-                      ),
-                    ],
-                  ),
+    final tk = context.tokens;
+    final good = rows.first.good;
+    final name = goodName(good);
+    final buy = cheapestAsk(rows).ask, sell = highestBid(rows).bid;
+    final t = trendOf(rows);
+    final word = t > 0
+        ? tr('up on yesterday')
+        : t < 0
+        ? tr('down on yesterday')
+        : tr('same as yesterday');
+    final arrow = t > 0
+        ? Icons.arrow_upward
+        : t < 0
+        ? Icons.arrow_downward
+        : Icons.remove;
+    final col = t > 0 ? tk.up : (t < 0 ? tk.down : tk.muted);
+    return PressSquish(
+      onTap: () => _openTrade(context, rows),
+      semanticLabel: tr('{g}: buy {b}, sell {s}, {t}. Open for details.', {
+        'g': name,
+        'b': fmt(buy),
+        's': fmt(sell),
+        't': word,
+      }),
+      child: SokoCard(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 56),
+          child: Row(
+            children: [
+              GoodIcon(good, size: 32),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 5,
+                child: Text(
+                  name,
+                  style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                 ),
-                const SizedBox(width: 8),
-                Flexible(
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 6,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerRight,
-                        child: RollingNumber(
-                          p.ask,
-                          style: Money.baseStyle(
-                            context,
-                          ).copyWith(fontSize: 22, fontWeight: FontWeight.w700),
+                      Num(
+                        tr('Buy {p}', {'p': fmt(buy)}),
+                        style: tt.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                      Text(
-                        tr('Sell to them: {p}', {'p': fmt(p.bid)}),
-                        textAlign: TextAlign.end,
-                        style: tt.bodySmall?.copyWith(color: muted),
+                      Num(
+                        tr('Sell {p}', {'p': fmt(sell)}),
+                        style: tt.bodyMedium?.copyWith(color: tk.muted),
                       ),
                     ],
                   ),
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              Expanded(
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 4,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    if (h.length >= 2)
-                      Sparkline(
-                        h,
-                        width: 56,
-                        semanticLabel: _bi(
-                          'Price history, {n} days',
-                          'Historia ya bei, siku {n}',
-                          {'n': h.length},
-                        ),
-                      ),
-                    DeltaChip(
-                      delta,
-                      upWord: _bi('up', 'juu'),
-                      downWord: _bi('down', 'chini'),
-                      flatWord: _bi('unchanged', 'haijabadilika'),
-                    ),
-                  ],
-                ),
               ),
-              _Stepper(
-                qty: q,
-                max: maxQ,
-                name: name,
-                onChanged: (v) => setState(() => qty = v),
-              ),
+              const SizedBox(width: 8),
+              Icon(arrow, size: 20, color: col),
             ],
           ),
-          if (p.why.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
+        ),
+      ),
+    );
+  }
+}
+
+/// "Your sack": what the player holds and whether it is worth more or less
+/// than they paid (average paid, from the trade log, against today's best
+/// sell price). One line when empty.
+class _SackStrip extends ConsumerWidget {
+  const _SackStrip();
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final g = ref.watch(gameProvider).value;
+    if (g == null) return const SizedBox.shrink();
+    final book = TradeBook(ref.watch(prefsProvider));
+    final tt = Theme.of(context).textTheme;
+    final tk = context.tokens;
+    final by = groupByGood(g.prices);
+    final held = g.player.stock.entries.where((e) => e.value > 0).toList();
+    Widget wrap(Widget c) => Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Semantics(container: true, child: c),
+    );
+    if (held.isEmpty) {
+      return wrap(
+        Row(
+          children: [
+            Icon(Icons.shopping_basket_outlined, size: 20, color: tk.muted),
+            const SizedBox(width: 8),
+            Expanded(
               child: Text(
-                whyText(p.why.first, lang),
-                style: tt.bodySmall?.copyWith(color: muted),
+                tr(
+                  'Your sack is empty. Buy something cheap and sell it when the price goes up.',
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: tt.bodySmall,
               ),
             ),
+          ],
+        ),
+      );
+    }
+    final chips = <Widget>[];
+    for (final e in held) {
+      final name = goodName(e.key);
+      final rows = by[e.key];
+      final avg = book.avgCost(e.key);
+      int? pct;
+      if (avg != null && avg > 0 && rows != null && rows.isNotEmpty) {
+        pct = ((highestBid(rows).bid - avg) * 100 / avg).round();
+      }
+      final up = (pct ?? 0) > 0, down = (pct ?? 0) < 0;
+      final col = pct == null
+          ? tk.muted
+          : (up ? tk.up : (down ? tk.down : tk.muted));
+      final sign = '${up ? '+' : ''}$pct%';
+      chips.add(
+        Semantics(
+          label: pct == null
+              ? tr('{g}, {n} in your sack', {'g': name, 'n': e.value})
+              : tr(
+                  up
+                      ? '{g}, {n} in your sack, worth {p}% more than you paid'
+                      : down
+                      ? '{g}, {n} in your sack, worth {p}% less than you paid'
+                      : '{g}, {n} in your sack, worth what you paid',
+                  {'g': name, 'n': e.value, 'p': pct.abs()},
+                ),
+          excludeSemantics: true,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 48),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                color: col.withValues(alpha: .12),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  GoodIcon(e.key, size: 24),
+                  const SizedBox(width: 6),
+                  Text(
+                    '$name x${e.value}',
+                    style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  if (pct != null) ...[
+                    const SizedBox(width: 6),
+                    Icon(
+                      up
+                          ? Icons.arrow_upward
+                          : down
+                          ? Icons.arrow_downward
+                          : Icons.remove,
+                      size: 16,
+                      color: col,
+                    ),
+                    Text(
+                      sign,
+                      style: tt.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: col,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    return wrap(
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            tr('Your sack'),
+            style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 4),
+          Wrap(spacing: 8, runSpacing: 8, children: chips),
         ],
       ),
     );
@@ -372,9 +454,11 @@ class _Stepper extends StatelessWidget {
   }
 }
 
+/// Details and actions for one good: buys from the cheapest-ask merchant,
+/// sells to the highest-bid merchant. [rows] are all merchants for that good.
 class TradeSheet extends ConsumerStatefulWidget {
-  const TradeSheet(this.p, {super.key, this.initialQty = 1});
-  final PriceRow p;
+  const TradeSheet(this.rows, {super.key, this.initialQty = 1});
+  final List<PriceRow> rows;
   final int initialQty;
   @override
   ConsumerState<TradeSheet> createState() => _TradeSheetState();
@@ -383,7 +467,7 @@ class TradeSheet extends ConsumerStatefulWidget {
 class _TradeSheetState extends ConsumerState<TradeSheet> {
   late int qty = widget.initialQty < 1 ? 1 : widget.initialQty;
   bool busy = false;
-  bool showWhy = false;
+  bool showWhy = true; // the explanation is the point of tapping a row
   TradeResult? result;
 
   Future<void> _go(Map<String, dynamic> a) async {
@@ -409,19 +493,21 @@ class _TradeSheetState extends ConsumerState<TradeSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final p = widget.p;
+    final p = cheapestAsk(widget.rows); // buy here
+    final sellRow = highestBid(widget.rows); // sell here
     final tt = Theme.of(context).textTheme;
     final tk = context.tokens;
     final lang = ref.watch(langProvider);
     final g = ref.watch(gameProvider).requireValue.player;
     final held = g.stock[p.good] ?? 0;
     final maxBuy = p.stock.clamp(1, 50);
-    if (qty > maxBuy) qty = maxBuy;
+    final maxQty = maxBuy > held ? maxBuy : held.clamp(1, 50);
+    if (qty > maxQty) qty = maxQty;
     // Allow the price to drift up to 3% before the order is refused.
     final maxUnit = p.ask + (p.ask * 3 ~/ 100);
     final cost = p.ask * qty;
     final worst = maxUnit * qty;
-    final afford = cost <= g.pts;
+    final afford = cost <= g.pts && qty <= p.stock;
     final open = g.phase == Phase.midday;
     final sellQty = held < qty ? held : qty;
     final name = goodName(p.good);
@@ -459,13 +545,11 @@ class _TradeSheetState extends ConsumerState<TradeSheet> {
           children: [
             Row(
               children: [
-                MerchantChip(p.merchant),
-                const SizedBox(width: 8),
                 GoodIcon(p.good, size: 36),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    tr('{g} at {m}', {'g': name, 'm': titleCase(p.merchant)}),
+                    name,
                     style: tt.titleLarge?.copyWith(fontWeight: FontWeight.w800),
                   ),
                 ),
@@ -476,39 +560,47 @@ class _TradeSheetState extends ConsumerState<TradeSheet> {
               spacing: 16,
               runSpacing: 4,
               children: [
-                Num(tr('Buy at {p}', {'p': pts(p.ask)})),
-                Num(tr('Sell at {p}', {'p': pts(p.bid)})),
+                Num(
+                  tr('Best to buy from: {m} at {p}', {
+                    'm': titleCase(p.merchant),
+                    'p': pts(p.ask),
+                  }),
+                ),
+                Num(
+                  tr('Best to sell to: {m} at {p}', {
+                    'm': titleCase(sellRow.merchant),
+                    'p': pts(sellRow.bid),
+                  }),
+                ),
                 Num(tr('You hold {n}', {'n': held})),
               ],
             ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Flexible(flex: 2, child: Text(tr('Quantity'))),
-                Expanded(
-                  flex: 3,
-                  child: Slider(
-                    min: 1,
-                    max: maxBuy.toDouble(),
-                    divisions: maxBuy > 1 ? maxBuy - 1 : null,
-                    value: qty.toDouble(),
-                    label: '$qty',
-                    semanticFormatterCallback: (v) => '${v.round()}',
-                    onChanged: (v) {
-                      if (v.round() != qty) Feel.select();
-                      setState(() => qty = v.round());
-                    },
-                  ),
-                ),
-                SizedBox(
-                  width: 36,
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Num(
-                      '$qty',
-                      style: const TextStyle(fontWeight: FontWeight.w700),
+            if (p.history.length >= 2)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: LayoutBuilder(
+                  builder: (c, bc) => Sparkline(
+                    p.history,
+                    width: bc.maxWidth,
+                    height: 40,
+                    semanticLabel: _bi(
+                      'Price history, {n} days',
+                      'Historia ya bei, siku {n}',
+                      {'n': p.history.length},
                     ),
                   ),
+                ),
+              ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(child: Text(tr('Quantity'))),
+                _Stepper(
+                  qty: qty,
+                  max: maxQty,
+                  name: name,
+                  onChanged: (v) => setState(() => qty = v),
                 ),
               ],
             ),
@@ -553,7 +645,7 @@ class _TradeSheetState extends ConsumerState<TradeSheet> {
                       'Kuuza {s} sasa kunaleta takriban',
                       {'s': sellQty},
                     ),
-                    Num(pts(p.bid * sellQty), textAlign: TextAlign.end),
+                    Num(pts(sellRow.bid * sellQty), textAlign: TextAlign.end),
                   ),
                 ],
               ),
@@ -617,10 +709,11 @@ class _TradeSheetState extends ConsumerState<TradeSheet> {
                         ? null
                         : () => _go({
                             'type': 'sell',
-                            'merchant': p.merchant,
+                            'merchant': sellRow.merchant,
                             'good': p.good,
                             'qty': qty,
-                            'min_unit_price': p.bid - p.bid * 3 ~/ 100,
+                            'min_unit_price':
+                                sellRow.bid - sellRow.bid * 3 ~/ 100,
                           }),
                     child: FittedBox(
                       fit: BoxFit.scaleDown,

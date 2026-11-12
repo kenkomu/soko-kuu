@@ -334,6 +334,25 @@ String tierName(String t) => switch (t.toLowerCase()) {
 /// Swahili for every on-screen string, keyed by the English text.
 /// Review this one file with a Kenyan speaker. {x} placeholders must stay.
 const sw = <String, String>{
+  'Buy {p}': 'Nunua {p}',
+  'Sell {p}': 'Uza {p}',
+  'up on yesterday': 'juu kuliko jana',
+  'down on yesterday': 'chini kuliko jana',
+  'same as yesterday': 'sawa na jana',
+  '{g}: buy {b}, sell {s}, {t}. Open for details.':
+      '{g}: nunua {b}, uza {s}, {t}. Fungua kuona maelezo.',
+  'Best to buy from: {m} at {p}': 'Nunua kwa: {m}, {p}',
+  'Best to sell to: {m} at {p}': 'Uza kwa: {m}, {p}',
+  'Your sack': 'Gunia lako',
+  'Your sack is empty. Buy something cheap and sell it when the price goes up.':
+      'Gunia lako ni tupu. Nunua kitu cha bei nafuu, kiuze bei ikipanda.',
+  '{g}, {n} in your sack': '{g}, {n} kwenye gunia lako',
+  '{g}, {n} in your sack, worth {p}% more than you paid':
+      '{g}, {n} kwenye gunia lako, thamani yake ni {p}% zaidi ya ulivyolipa',
+  '{g}, {n} in your sack, worth {p}% less than you paid':
+      '{g}, {n} kwenye gunia lako, thamani yake ni {p}% pungufu ya ulivyolipa',
+  '{g}, {n} in your sack, worth what you paid':
+      '{g}, {n} kwenye gunia lako, thamani yake ni sawa na ulivyolipa',
   'Added (allowances)': 'Zilizoongezwa (posho)',
   'Add your email to join a chama': 'Weka barua pepe yako ili ujiunge na chama',
   'Approve': 'Kubali',

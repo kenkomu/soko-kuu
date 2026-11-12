@@ -60,6 +60,13 @@ class TradeBook {
     return (bought: bought, sales: sales, net: net);
   }
 
+  /// Average points paid per unit of what the player still holds, or null
+  /// when unknown (never bought through this app, or data cleared).
+  int? avgCost(String good) {
+    final b = _basis(good);
+    return b.$1 > 0 && b.$2 > 0 ? b.$2 ~/ b.$1 : null;
+  }
+
   bool get hadProfit => p.getBool('profit_seen') ?? false;
 
   (int, int, int) _basis(String good) {
