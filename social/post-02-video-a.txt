@@ -1,0 +1,6 @@
+Built at NEAR HACKATHON: Soko Kuu, a Kenyan market game. Listen to Radio Soko, buy before the rise, sell before the fall. Then try the live market on NEAR testnet.
+
+Play: https://kenkomu.github.io/soko-kuu/
+Code: https://github.com/kenkomu/soko-kuu
+
+@NEARProtocol #NEARHackathon

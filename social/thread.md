@@ -1,34 +1,36 @@
-STATUS: DRAFT, not posted.
+STATUS: DRAFT, not posted
 
-Thread, replies to the main post (post-01-demo.md). Each fenced block is the exact text of one post, 280 raw characters max.
-Post with post.py one at a time, using --reply-to with the previous id. Dry run first. Do not use --send until Ken approves.
+Thread, replies under the video post (post-02-video.md) once it is live. Each fenced block is the exact text of one post,
+280 raw characters max by post.py. Post one at a time: save the block alone in a file, dry run with
+`--reply-to <previous post id>`, show Ken the text and hash, send only after his yes for that exact text.
+The thread is optional. The hackathon needs the video post; these replies add detail.
 
-Post 2 (what NEAR does)
+Post 2 (two ways to play) 226/280
 ```
-What NEAR does here: a testnet contract (sokokuu.sokokuu-ken.testnet) holds the whole game world. A relayer pays gas, so players never see a wallet. Each action is signed with the player's own ed25519 key; the contract checks signature, nonce and expiry itself.
-```
-
-Post 3 (non-transferable points)
-```
-Points (pts) are a NEP-245 token on purpose non-transferable. mt_transfer always panics NON_TRANSFERABLE. You can check read-only, no account or gas. Steps are in contract/JUDGES.md in the repo.
+Two ways to play, chosen on the first screen. Play Soko Run: five quick market days on your phone, offline, no sign-in. Live market on NEAR: the shared testnet market with chama, credit and other players. You can switch later.
 ```
 
-Post 4 (economy)
+Post 3 (Soko Run) 263/280
 ```
-The economy is a Rust crate with no AI in it. A 100-seed x 60-day simulation keeps total money near target: worst single-day drift about 1.05% against a 15% limit. The tests fail the build if it breaks.
-```
-
-Post 5 (game loop and polish)
-```
-Every 30 seconds: read a price, see "Why this price", buy or sell. A sale ends with Faida (profit) or Hasara (loss). A beat-yesterday card, a kind first-loss message, and sound/haptics toggles. English and Kiswahili.
+Soko Run: every day Radio Soko tells you about tomorrow. Drought in Kiambu? Tomatoes will be scarce. It is right about 3 times in 4. Buy before the rise, sell before the fall. Titles go from Mgeni to Tajiri wa Soko. The Daily Soko is the same 5 days for everyone.
 ```
 
-Post 6 (honest about the demo)
+Post 4 (what NEAR does) 262/280
 ```
-Honest note: the offline demo uses a simplified chama (computer-controlled members, fixed pot). Against the live runner (app.chukua.xyz) chama votes and loans are real. Email sign-in is not set up; guest play is the supported path.
+What NEAR does here: a testnet contract (sokokuu.sokokuu-ken.testnet) holds the whole live market. A relayer pays gas, so players never see a wallet. Each action is signed with the player's own ed25519 key; the contract checks signature, nonce and expiry itself.
 ```
 
-Post 7 (goods, current wording: NOT deployed yet). Keep this wording until Ken says the contract upgrade is done.
+Post 5 (points and the economy) 254/280
+```
+Points (pts) are a NEP-245 token that cannot be sent to anyone: mt_transfer always panics NON_TRANSFERABLE. Live prices come from a plain Rust crate, no AI. A 100-seed, 60-day simulation keeps total money within 15%; the worst drift measured is about 1%.
+```
+
+Post 6 (try it) 224/280
+```
+Try it, no account or email: open the link, tap "I am 18 or older. Start", then Play Soko Run (about a minute). For the live market: Play as a guest, tap a crop for "Why this price", buy, sell, then look at Chama and Ripoti.
+```
+
+Post 7 (goods, current wording: NOT deployed yet). Keep this wording until Ken says the contract upgrade is done. 123/280
 ```
 Today only pts is a token on testnet. Goods as NEP-245 token ids are written and tested in the source but not deployed yet.
 ```
@@ -37,9 +39,28 @@ Held-back alternate, do NOT use until the upgrade is confirmed live [VERIFY: dep
 Goods are NEP-245 token ids too (tomato, maize, sukuma, onion, fish, charcoal): buying mints, selling burns. Still non-transferable.
 ```
 
-Post 8 (close)
+Post 8 (honest notes) 246/280
 ```
-No cash-out, no token sale, no prize, no paid chance. 18+ gate first. Testnet only. Built for the NEAR Hackathon (Games). Most code was written with Claude Code, directed and reviewed by me.
+Honest notes: Soko Run is offline and never touches the chain; its points are separate. In the live market, chama votes and loans are real. Email sign-in is not set up, so guest play is the way in. Soko Run's radio lines are English only for now.
+```
+
+Post 9 (close and thanks) 259/280
+```
+No cash-out, no token sale, no prize, no paid chance. 18+ gate first. Testnet only. Built at NEAR HACKATHON, Games track. Most code was written with Claude Code, directed and reviewed by me. Asante for reading.
 
 Repo (MIT): https://github.com/kenkomu/soko-kuu
 ```
+
+Where each claim comes from
+- Post 2: entry screen strings in app/lib/run/entry.dart and app/lib/l10n.dart ("Five quick market days on this phone. No sign-in, nothing is sent anywhere.", "The shared market with chama, credit and other players.", "You can switch later.").
+- Post 3: app/lib/run/soko_run_engine.dart (5 days; a rumour is true with chance 0.75; news line "Drought in Kiambu. Few tomato lorries will reach the soko tomorrow."; titles Mgeni, Mchuuzi, Mfanyabiashara, Tajiri wa Soko; Daily Soko seed is the same for everyone on the same UTC date) and the UI line "Radio Soko is right about 3 times in 4."
+- Post 4: README.md "What NEAR does here".
+- Post 5: README.md (NEP-245 pts, non-transferable, mt_transfer panics NON_TRANSFERABLE, rule-based econ crate, 100-seed 60-day sim within +-15%, worst drift about 1%).
+- Post 6: README.md "Try it in 90 seconds", app/DEMO.md (Soko Run "about a minute").
+- Post 7: README.md "Known gaps" (goods not NEP-245 token ids yet).
+- Post 8: app/DEMO.md (Soko Run sends nothing; its points are separate), README.md (chama votes and loans real against the live runner; email sign-in not set up), app/lib/run/soko_run_engine.dart TODO (news lines stay English for now). The hosted web build has API_BASE=https://app.chukua.xyz built in (checked 14 Nov 2026).
+- Post 9: README.md (what the game never does, AI assistance, MIT license, Games track).
+
+[VERIFY] items
+- [VERIFY: deployed?] Post 7 alternate: only after the goods upgrade is live on testnet and contract/JUDGES.md shows the new code hash.
+- [VERIFY] README.md line 37 still says Soko Run is "a quick 10-day offline run". The code, app/JUDGES.md and app/DEMO.md say 5 days (commit 035d5bb). The drafts use 5. README is not in social/; its owner should fix it before judges read it.

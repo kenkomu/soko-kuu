@@ -1,0 +1,6 @@
+Soko Kuu, built at NEAR HACKATHON. Run a stall in a Kenyan market: buy nyanya before the price rises, join a chama, build credit. Testnet, no wallet, no real money.
+
+Play: https://kenkomu.github.io/soko-kuu/
+Code: https://github.com/kenkomu/soko-kuu
+
+@NEARProtocol #NEARHackathon
