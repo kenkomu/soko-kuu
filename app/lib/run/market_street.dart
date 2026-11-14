@@ -20,18 +20,20 @@ const kStreetWalk = 'assets/street/walk.webp';
 /// the frame after this, so the trader always arrives within 0.8 s.
 const kStreetWalkMs = 750;
 
-// Geometry of the Blender render (soft clay diorama), as fractions of the
-// plate's width and height. Measured from the scene's camera, so the sprite
+// Geometry of the v2 Blender render (market_v2.blend, plate_geometry.json),
+// re-expressed for plate.webp, which is v2_plate.png cropped to its visible
+// pixels (x 22..1378, y 70..606 of 1400x636). All values are fractions of the
+// plate's width and height, projected from the scene's camera, so the sprite
 // stands on the same ground line and at the same scale as the stall owners.
-const _plateAspect = 1476 / 506;
-const _pathY = .8097; // feet line of the walking path
-const _startX = .367; // where the trader stands when the run starts
+const _plateAspect = 1356 / 536;
+const _pathY = .7449; // feet line of the walking path
+const _startX = .3877; // where the trader stands when the run starts
 const _frames = 12; // walk cycle, facing right
 const _frameAspect = 84 / 141; // one frame of walk.webp
-const _spriteH = .2981; // frame height / plate height
-const _feetX = .5536, _feetY = .984; // feet inside a frame
+const _spriteH = .2423; // frame height / plate height (character: .2320)
+const _feetX = .5536, _feetY = .9814; // feet inside a frame
 const _frameMs = 33; // about 30 frames a second while walking
-const _longestWalk = .7783 - .2217; // Njeri to Baraka
+const _longestWalk = .7950 - .2050; // Njeri to Baraka
 
 class StreetStall {
   const StreetStall(this.good, this.owner, this.x);
@@ -48,9 +50,9 @@ class StreetStall {
 }
 
 const streetStalls = [
-  StreetStall('tomato', 'Njeri', .2217),
+  StreetStall('tomato', 'Njeri', .2050),
   StreetStall('maize', 'Wanjiru', .5),
-  StreetStall('sukuma', 'Baraka', .7783),
+  StreetStall('sukuma', 'Baraka', .7950),
 ];
 
 /// The street: a pre-rendered plate, three tappable stalls and the player's
@@ -161,10 +163,10 @@ class _MarketStreetState extends State<MarketStreet>
                   ),
                   for (final s in streetStalls)
                     Positioned(
-                      left: (s.x - .1) * w,
-                      width: .2 * w,
-                      top: .16 * h,
-                      height: .78 * h,
+                      left: (s.x - .11) * w,
+                      width: .22 * w,
+                      top: .18 * h,
+                      height: .76 * h,
                       child: Semantics(
                         button: true,
                         label: s.label,
