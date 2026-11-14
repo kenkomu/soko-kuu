@@ -516,6 +516,7 @@ const sw = <String, String>{
   'Five quick market days, offline. Nothing is sent anywhere.':
       'Siku tano za soko kwa haraka, bila mtandao. Hakuna kinachotumwa popote.',
   'Back to Soko Run': 'Rudi kwenye Soko Run',
+  '{n}\'s {g} stall': 'Kibanda cha {g} cha {n}',
   'Tomato': 'Nyanya',
   'Maize': 'Mahindi',
   'Sukuma': 'Sukuma wiki',

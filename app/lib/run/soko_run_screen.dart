@@ -11,6 +11,7 @@ import '../ui/kit/feel.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
 import 'entry.dart';
+import 'market_street.dart';
 import 'run_widgets.dart';
 import 'soko_run_engine.dart';
 
@@ -44,6 +45,11 @@ class _SokoRunScreenState extends ConsumerState<SokoRunScreen>
   bool _newBest = false;
   bool _copied = false;
   final _scroll = ScrollController();
+  // Market street (behind [marketStreetProvider]): the row the trader just
+  // walked to, and a counter that replays its spotlight.
+  final _rowKeys = {for (final x in runGoods) x.id: GlobalKey()};
+  String? _spot;
+  int _pulse = 0;
   late final AnimationController _fx = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: kRevealMs),
@@ -98,6 +104,27 @@ class _SokoRunScreenState extends ConsumerState<SokoRunScreen>
       setState(() {});
     }
     return ok;
+  }
+
+  /// The trader reached a stall on the market street: bring that good's Buy
+  /// and Sell into view and ring the row once.
+  void _toStall(String id) {
+    final ctx = _rowKeys[id]?.currentContext;
+    if (ctx != null) {
+      Scrollable.ensureVisible(
+        ctx,
+        duration: reduceMotion(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
+        alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+      );
+    }
+    Feel.select();
+    setState(() {
+      _spot = id;
+      _pulse++;
+    });
   }
 
   void _next() {
@@ -315,6 +342,15 @@ class _SokoRunScreenState extends ConsumerState<SokoRunScreen>
     // text sizes it scrolls with the rest so the goods still fit.
     final pin = MediaQuery.textScalerOf(context).scale(14) / 14 <= 1.3;
     final bar = RunTopBar(g, fx: _fx, still: still);
+    final street = ref.watch(marketStreetProvider);
+    Widget row(String id) => RunGoodRow(
+      g,
+      id,
+      key: ValueKey('row-$id'),
+      fx: _fx,
+      still: still,
+      onTrade: _trade,
+    );
     return Column(
       children: [
         if (pin)
@@ -330,6 +366,10 @@ class _SokoRunScreenState extends ConsumerState<SokoRunScreen>
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (!pin) bar,
+                if (street) ...[
+                  const SizedBox(height: 8),
+                  MarketStreet(onArrive: _toStall),
+                ],
                 if (g.reveal != null) ...[
                   const SizedBox(height: 12),
                   RunRevealBanner(g),
@@ -339,14 +379,14 @@ class _SokoRunScreenState extends ConsumerState<SokoRunScreen>
                 if (hint != null) ...[const SizedBox(height: 12), hint],
                 for (final x in runGoods) ...[
                   const SizedBox(height: 10),
-                  RunGoodRow(
-                    g,
-                    x.id,
-                    key: ValueKey('row-${x.id}'),
-                    fx: _fx,
-                    still: still,
-                    onTrade: _trade,
-                  ),
+                  if (street)
+                    StallSpotlight(
+                      key: _rowKeys[x.id],
+                      pulse: _spot == x.id ? _pulse : 0,
+                      child: row(x.id),
+                    )
+                  else
+                    row(x.id),
                 ],
               ],
             ),
