@@ -101,6 +101,57 @@ fn bot_turn(w: &mut World, pid: &str, rng: &mut Rng) {
 
 /// Run `days` days with bots. Returns one frame per day (after the daily tick).
 pub fn simulate(cfg: Config, days: u32, scripted: &[ScriptedEvent]) -> (World, Vec<Frame>) {
+    let active = cfg.players;
+    let (w, frames, _) = simulate_active(cfg, days, scripted, active);
+    (w, frames)
+}
+
+/// What a player sees at the stalls after one day's tick.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Health {
+    pub day: u32,
+    pub min_stall_cash: Pts,
+    pub mean_stall_cash: Pts,
+    /// Mean bid/ask over every stall and good, in bp. A healthy stall at the base spread is 9,200/10,800 = 8,518.
+    pub bid_ask_bp: u64,
+    pub min_bid_ask_bp: u64,
+    /// How many (stall, good) asks changed since the previous day.
+    pub asks_moved: usize,
+    /// How many (stall, good) stock levels changed since the previous day (trade and restock activity).
+    pub stocks_moved: usize,
+    pub drift_bp: i64,
+}
+
+fn snapshot(w: &World) -> (Vec<Pts>, Vec<u32>) {
+    let mut asks = vec![]; let mut stocks = vec![];
+    for (mi, m) in w.merchants.iter().enumerate() {
+        for g in GOODS.iter() { asks.push(w.quote(mi, g.id).map_or(0, |q| q.ask)); stocks.push(m.stock.get(g.id).copied().unwrap_or(0)); }
+    }
+    (asks, stocks)
+}
+
+fn health(w: &World, prev: &(Vec<Pts>, Vec<u32>), target: Pts) -> Health {
+    let n = w.merchants.len().max(1) as u64;
+    let cash: Vec<Pts> = w.merchants.iter().map(|m| m.cash).collect();
+    let mut ratios = vec![];
+    for mi in 0..w.merchants.len() { for g in GOODS.iter() { if let Some(q) = w.quote(mi, g.id) { ratios.push(q.bid * BP / q.ask.max(1)); } } }
+    let now = snapshot(w);
+    Health {
+        day: w.day,
+        min_stall_cash: cash.iter().copied().min().unwrap_or(0),
+        mean_stall_cash: cash.iter().sum::<Pts>() / n,
+        bid_ask_bp: ratios.iter().sum::<u64>() / ratios.len().max(1) as u64,
+        min_bid_ask_bp: ratios.iter().copied().min().unwrap_or(0),
+        asks_moved: now.0.iter().zip(&prev.0).filter(|(a, b)| a != b).count(),
+        stocks_moved: now.1.iter().zip(&prev.1).filter(|(a, b)| a != b).count(),
+        drift_bp: drift_bp(w.supply(), target),
+    }
+}
+
+/// Like `simulate`, but only the first `active` players act; the rest are registered and idle (they still
+/// receive the stipend and the treasury payout). Models the live world: few real players, many quiet days.
+/// Also returns one `Health` per day.
+pub fn simulate_active(cfg: Config, days: u32, scripted: &[ScriptedEvent], active: usize) -> (World, Vec<Frame>, Vec<Health>) {
     let mut w = World::new(cfg.clone());
     for s in scripted { w.inject(Event::new(s.kind, s.day, s.magnitude)); }
     setup_chamas(&mut w);
@@ -108,12 +159,14 @@ pub fn simulate(cfg: Config, days: u32, scripted: &[ScriptedEvent]) -> (World, V
     let target = w.target_supply;
     let mut rng = Rng::new(cfg.seed.wrapping_mul(7919));
     let mut frames = Vec::with_capacity(days as usize);
+    let mut healths = Vec::with_capacity(days as usize);
+    let mut prev = snapshot(&w);
+    let ids: Vec<String> = w.players.keys().take(active).cloned().collect();
     for _ in 0..days {
-        act(&mut w, "p000", Action::Advance {}); // dawn -> midday
-        let ids: Vec<String> = w.players.keys().cloned().collect();
+        w.advance().expect("advance"); // dawn -> midday
         for _ in 0..2 { for id in &ids { bot_turn(&mut w, id, &mut rng); } }
-        act(&mut w, "p000", Action::Advance {}); // midday -> dusk
-        let r = w.apply("p000", &Action::Advance {}).expect("advance"); // dusk -> dawn: tick
+        w.advance().expect("advance"); // midday -> dusk
+        let r = w.advance().expect("advance"); // dusk -> dawn: tick
         let s = w.supply();
         frames.push(Frame {
             day: w.day, supply: s, drift_bp: drift_bp(s, target), price_index_bp: w.price_index_bp(),
@@ -121,8 +174,61 @@ pub fn simulate(cfg: Config, days: u32, scripted: &[ScriptedEvent]) -> (World, V
             open_loans: w.loans.values().filter(|l| l.status == crate::credit::LoanStatus::Open).count(),
             defaults: w.players.values().map(|p| p.defaults).sum(), events: r.events,
         });
+        healths.push(health(&w, &prev, target));
+        prev = snapshot(&w);
     }
-    (w, frames)
+    (w, frames, healths)
+}
+
+/// Few-player market health over many seeds. `late_*` fields cover the second half of the run (after the start-up cash is gone).
+#[derive(Debug, Clone, Serialize)]
+pub struct HealthReport {
+    pub seeds: u64, pub days: u32, pub players: usize, pub active: usize,
+    pub worst_abs_drift_bp: i64,
+    pub late_min_stall_cash: Pts,
+    pub late_mean_stall_cash: Pts,
+    pub late_mean_bid_ask_bp: u64,
+    pub late_min_bid_ask_bp: u64,
+    /// Mean asks changed per day (of 24) in the second half.
+    pub late_mean_asks_moved_x100: u64,
+    /// Mean stock levels changed per day (of 24) in the second half.
+    pub late_mean_stocks_moved_x100: u64,
+    /// Longest run of days, any seed, in which no stock level changed at any stall.
+    pub longest_frozen_days: u32,
+    /// Longest run of days, any seed, in which not one of the 24 asks changed.
+    pub longest_still_days: u32,
+    /// Share of top player in total supply at the end, worst seed, bp.
+    pub worst_top_player_share_bp: u64,
+}
+
+pub fn few_player_health(seeds: u64, days: u32, players: usize, active: usize) -> HealthReport {
+    let mut r = HealthReport { seeds, days, players, active, worst_abs_drift_bp: 0, late_min_stall_cash: Pts::MAX, late_mean_stall_cash: 0,
+        late_mean_bid_ask_bp: 0, late_min_bid_ask_bp: u64::MAX, late_mean_asks_moved_x100: 0, late_mean_stocks_moved_x100: 0, longest_frozen_days: 0, longest_still_days: 0, worst_top_player_share_bp: 0 };
+    let (mut cash_sum, mut ratio_sum, mut asks_sum, mut stocks_sum, mut n) = (0u64, 0u64, 0u64, 0u64, 0u64);
+    for seed in 1..=seeds {
+        let (w, _, hs) = simulate_active(Config { seed, players, ..Config::default() }, days, &[], active);
+        let (mut run, mut still) = (0u32, 0u32);
+        for h in &hs {
+            r.worst_abs_drift_bp = r.worst_abs_drift_bp.max(h.drift_bp.abs());
+            run = if h.stocks_moved == 0 { run + 1 } else { 0 };
+            still = if h.asks_moved == 0 { still + 1 } else { 0 };
+            r.longest_frozen_days = r.longest_frozen_days.max(run);
+            r.longest_still_days = r.longest_still_days.max(still);
+            if h.day > days / 2 {
+                r.late_min_stall_cash = r.late_min_stall_cash.min(h.min_stall_cash);
+                r.late_min_bid_ask_bp = r.late_min_bid_ask_bp.min(h.min_bid_ask_bp);
+                cash_sum += h.mean_stall_cash; ratio_sum += h.bid_ask_bp; asks_sum += h.asks_moved as u64; stocks_sum += h.stocks_moved as u64; n += 1;
+            }
+        }
+        let top = w.players.values().map(|p| p.pts).max().unwrap_or(0);
+        r.worst_top_player_share_bp = r.worst_top_player_share_bp.max(top * BP / w.supply().max(1));
+    }
+    let n = n.max(1);
+    r.late_mean_stall_cash = cash_sum / n;
+    r.late_mean_bid_ask_bp = ratio_sum / n;
+    r.late_mean_asks_moved_x100 = asks_sum * 100 / n;
+    r.late_mean_stocks_moved_x100 = stocks_sum * 100 / n;
+    r
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -187,6 +293,21 @@ mod tests {
         assert_eq!((r.seeds, r.days), (100, 60));
         assert!(r.worst_abs_drift_bp < 1500, "drift guarantee broken: {:?}", r);
         assert!(r.min_solvent_merchants >= 3, "stall solvency guarantee broken: {:?}", r);
+    }
+    /// The live condition: few registered players, one or two of them trading, 180 days. Before the stall
+    /// float every one of these ended with stalls near 10,000 cash, bids at about 26% of asks and stock frozen
+    /// for 48 to 94 days. The pins are well below the measured values (see econ/JUDGES.md).
+    #[test]
+    fn few_players_keep_stalls_fair_and_trading() {
+        for (players, active) in [(2, 1), (3, 1), (6, 2)] {
+            let r = few_player_health(10, 180, players, active);
+            eprintln!("{}", serde_json::to_string(&r).unwrap());
+            assert!(r.worst_abs_drift_bp < 1500, "{r:?}");
+            assert!(r.late_mean_stall_cash >= 45_000, "{r:?}");
+            assert!(r.late_mean_bid_ask_bp >= 7_300, "{r:?}");
+            assert!(r.late_mean_stocks_moved_x100 >= 300, "{r:?}");
+            assert!(r.longest_frozen_days <= 20, "{r:?}");
+        }
     }
     #[test]
     fn scripted_drought_raises_farm_prices() {

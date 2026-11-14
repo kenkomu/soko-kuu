@@ -17,6 +17,16 @@ fn main() {
             let (_, frames) = simulate(Config { seed, ..Config::default() }, days, &ev);
             println!("{}", serde_json::to_string(&frames).unwrap());
         }
-        _ => eprintln!("usage: econ_sim stability [seeds] [days] | sim <seed> <days> [events.json]"),
+        Some("few") => {
+            let num = |i: usize, d: u64| a.get(i).and_then(|s| s.parse().ok()).unwrap_or(d);
+            let r = few_player_health(num(2, 20), num(3, 180) as u32, num(4, 3) as usize, num(5, 1) as usize);
+            println!("{}", serde_json::to_string_pretty(&r).unwrap());
+        }
+        Some("health") => {
+            let num = |i: usize, d: u64| a.get(i).and_then(|s| s.parse().ok()).unwrap_or(d);
+            let (_, _, hs) = simulate_active(Config { seed: num(2, 1), players: num(4, 3) as usize, ..Config::default() }, num(3, 180) as u32, &[], num(5, 1) as usize);
+            println!("{}", serde_json::to_string(&hs).unwrap());
+        }
+        _ => eprintln!("usage: econ_sim stability [seeds] [days] | sim <seed> <days> [events.json] | few [seeds] [days] [players] [active] | health <seed> <days> [players] [active]"),
     }
 }

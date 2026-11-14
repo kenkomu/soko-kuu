@@ -196,7 +196,6 @@ impl World {
         let mut r = Receipt::default();
         match a {
             Action::Buy { merchant, good: g, qty, max_unit_price } => {
-                self.need_midday()?;
                 let (mi, gd) = self.lookup(merchant, g, *qty)?;
                 let q = self.quote(mi, g).unwrap();
                 if *self.merchants[mi].stock.get(g.as_str()).unwrap_or(&0) < *qty { return Err(ErrorCode::NotEnoughStock); }
@@ -217,7 +216,6 @@ impl World {
                 r.line(format!("bought {qty} {g} from {merchant} at {unit}"), -(total as i64));
             }
             Action::Sell { merchant, good: g, qty, min_unit_price } => {
-                self.need_midday()?;
                 let (mi, gd) = self.lookup(merchant, g, *qty)?;
                 let q = self.quote(mi, g).unwrap();
                 if self.players[pid].stock.get(g).copied().unwrap_or(0) < *qty { return Err(ErrorCode::NotEnoughStock); }
@@ -235,7 +233,6 @@ impl World {
                 r.line("market fee", -(f as i64));
             }
             Action::Haggle { merchant, good: g } => {
-                self.need_midday()?;
                 let (_, _) = self.lookup(merchant, g, 1)?;
                 let key = format!("{merchant}/{g}");
                 let day = self.day;
@@ -283,7 +280,6 @@ impl World {
                 }
             }
             Action::CreditRequest { merchant, good: g, qty } => {
-                self.need_midday()?;
                 let (mi, gd) = self.lookup(merchant, g, *qty)?;
                 if *self.merchants[mi].stock.get(gd.id).unwrap_or(&0) < *qty { return Err(ErrorCode::NotEnoughStock); }
                 let cost = self.quote(mi, g).unwrap().ask.checked_mul(*qty as u64).ok_or(ErrorCode::Internal)?;
@@ -327,7 +323,6 @@ impl World {
                 r.events.push(format!("you now guarantee loan {loan_id}"));
             }
             Action::Invest { merchant, pts } => {
-                self.need_midday()?;
                 let mi = self.merchant_idx(merchant).ok_or(ErrorCode::NotMember)?;
                 if *pts == 0 { return Err(ErrorCode::NotEnoughPts); }
                 if self.investments.iter().filter(|i| i.player == pid).count() >= MAX_INVESTMENTS { return Err(ErrorCode::RateLimited); }
@@ -353,7 +348,6 @@ impl World {
         Ok(r)
     }
 
-    fn need_midday(&self) -> Result<(), ErrorCode> { if self.phase == Phase::Midday { Ok(()) } else { Err(ErrorCode::WrongPhase) } }
 
     fn lookup(&self, merchant: &str, g: &str, qty: u32) -> Result<(usize, &'static GoodDef), ErrorCode> {
         if qty == 0 || qty > MAX_QTY { return Err(ErrorCode::NotEnoughStock); }
@@ -493,7 +487,7 @@ impl World {
                 self.merchants[mi].ref_mid.insert(g.id.to_string(), q.mid);
             }
         }
-        // 7. thermostat stipend + treasury payout + stall rent
+        // 7. thermostat stipend + stall rent + daily payout (stalls short of cash first, then players)
         let supply = self.supply() as i128;
         let target = self.target_supply as i128;
         let err_bp = (target - supply) * BP as i128 / target.max(1);
@@ -503,15 +497,46 @@ impl World {
         let mint = (replace as i128 + correction).clamp(0, 3 * (self.cfg.stipend * self.players.len() as u64) as i128) as u64;
         let n = self.players.len() as u64;
         self.minted = self.minted.saturating_add(mint);
-        let pay = self.treasury / 2;
-        self.treasury -= pay;
-        if let Some(each) = (mint + pay).checked_div(n) {
-            let rem = (mint + pay) - each * n;
-            for p in self.players.values_mut() { p.pts = p.pts.saturating_add(each); }
-            self.treasury = self.treasury.saturating_add(rem);
-        } else { self.treasury = self.treasury.saturating_add(pay); self.minted -= mint; }
         let rent_bp = if supply > target { 200 } else { 50 };
         for m in self.merchants.iter_mut() { let rent = m.cash * rent_bp / BP; m.cash -= rent; self.burned = self.burned.saturating_add(rent); }
+        let half = self.treasury / 2;
+        self.treasury -= half;
+        let purse = self.refill_stalls(mint + half);
+        if let Some(each) = purse.checked_div(n) {
+            for p in self.players.values_mut() { p.pts = p.pts.saturating_add(each); }
+            self.treasury = self.treasury.saturating_add(purse - each * n);
+        } else { self.treasury = self.treasury.saturating_add(purse); }
+    }
+
+    /// Stall float: today's payout first lifts every stall below `BID_FLOAT` back up to it, poorest stall
+    /// first; returns what is left for the players. Moves pts only (nothing is minted here), so the closed
+    /// loop and the thermostat are unchanged. Without it, stall money leaks to players every day (restock
+    /// pts reach the treasury, half the treasury and the whole mint go to players), and when few players
+    /// buy, stalls end up broke: lowball bids and no restocking, so prices freeze.
+    /// One-off recovery for a world whose stalls went broke before the stall float existed (the live testnet
+    /// world on day 172). Brings each stall below its opening cash (`cfg.merchant_cash`) back up to it with
+    /// newly minted pts and raises `target_supply` by the same amount, the same accounting as a new player's
+    /// starting pts, so drift and the thermostat are unchanged. Opening cash, not `BID_FLOAT`, so the treasury
+    /// can rebuild its float from stall restocking while players still get a payout. Never called by the
+    /// daily tick. Returns the pts minted (0 when every stall already holds its opening cash).
+    pub fn refloat_stalls(&mut self) -> Pts {
+        let to = self.cfg.merchant_cash;
+        let mut total: Pts = 0;
+        for m in self.merchants.iter_mut() { let gap = to.saturating_sub(m.cash); m.cash += gap; total += gap; }
+        self.minted = self.minted.saturating_add(total);
+        self.target_supply = self.target_supply.saturating_add(total);
+        total
+    }
+
+    fn refill_stalls(&mut self, mut purse: Pts) -> Pts {
+        let mut order: Vec<usize> = (0..self.merchants.len()).collect();
+        order.sort_by_key(|&i| (self.merchants[i].cash, i));
+        for i in order {
+            let top = BID_FLOAT.saturating_sub(self.merchants[i].cash).min(purse);
+            self.merchants[i].cash += top;
+            purse -= top;
+        }
+        purse
     }
 
     /// Season end: chama cash is shared out by shares (closed loop; players cannot withdraw earlier).
@@ -556,9 +581,21 @@ mod tests {
         assert_eq!(w.apply("p000", &Action::Buy { merchant: "njeri".into(), good: "tomato".into(), qty: 1, max_unit_price: 1 }), Err(ErrorCode::PriceMoved));
         w.players.get_mut("p000").unwrap().pts = 1;
         assert_eq!(buy(&mut w, "p000", 1), Err(ErrorCode::NotEnoughPts));
-        w.phase = Phase::Dawn;
-        assert_eq!(buy(&mut w, "p001", 1), Err(ErrorCode::WrongPhase));
         assert_eq!(w.apply("nobody", &Action::Advance {}), Err(ErrorCode::NotMember));
+    }
+    /// The market is open in every phase: stall actions work at dawn, midday and dusk alike.
+    #[test]
+    fn market_open_every_phase() {
+        let mut w = w();
+        for (i, ph) in [Phase::Dawn, Phase::Midday, Phase::Dusk].into_iter().enumerate() {
+            w.phase = ph;
+            let p = format!("p00{i}");
+            w.apply(&p, &Action::Haggle { merchant: "njeri".into(), good: "tomato".into() }).unwrap();
+            buy(&mut w, &p, 2).unwrap();
+            w.apply(&p, &Action::Sell { merchant: "njeri".into(), good: "tomato".into(), qty: 1, min_unit_price: None }).unwrap();
+            w.apply(&p, &Action::CreditRequest { merchant: "njeri".into(), good: "sukuma".into(), qty: 1 }).unwrap();
+            w.apply(&p, &Action::Invest { merchant: "njeri".into(), pts: 100 }).unwrap();
+        }
     }
     #[test]
     fn haggle_once_per_day_and_cheaper() {
@@ -663,7 +700,7 @@ mod tests {
         }
         w.phase = Phase::Dawn;
         let before = snap(&w);
-        assert_eq!(w.apply("p001", &Action::Invest { merchant: "njeri".into(), pts: 10 }), Err(ErrorCode::WrongPhase));
+        assert_eq!(w.apply("p002", &Action::Invest { merchant: "njeri".into(), pts: 1000 }), Err(ErrorCode::NotEnoughPts));
         assert_eq!(before, snap(&w));
     }
     #[test]
@@ -702,6 +739,90 @@ mod tests {
         let ref0 = w.merchants[0].ref_mid["tomato"];
         w.advance().unwrap();
         assert!(w.merchants[0].ref_mid["tomato"] <= ref0 * 12 / 10 + 1);
+    }
+    /// Stall float: at dusk, stalls under BID_FLOAT are refilled from the day's payout (poorest first) before
+    /// players are paid. Pts are only moved, so supply after the tick is the same as without the rule.
+    #[test]
+    fn dusk_refills_poor_stalls_before_players() {
+        let mut w = w();
+        w.phase = Phase::Dusk;
+        w.merchants[1].cash = 10_000;
+        w.merchants[2].cash = 30_000;
+        w.treasury = 200_000;
+        let players0: Pts = w.players.values().map(|p| p.pts).sum();
+        w.advance().unwrap();
+        assert!(w.merchants.iter().all(|m| m.cash >= BID_FLOAT), "{:?}", w.merchants.iter().map(|m| m.cash).collect::<Vec<_>>());
+        assert!(w.quote(1, "tomato").unwrap().why.iter().all(|l| !l.contains("short of cash")));
+        let players1: Pts = w.players.values().map(|p| p.pts).sum();
+        assert!(players1 > players0, "what is left still goes to players");
+        // a small purse goes to the poorest stall first
+        let mut w = self::w();
+        w.phase = Phase::Dusk;
+        w.merchants[1].cash = 10_000;
+        w.merchants[2].cash = 30_000;
+        w.treasury = 0;
+        w.target_supply = w.supply() + 5_000; // thermostat mints ~500 (10% of the gap)
+        w.advance().unwrap();
+        assert!(w.merchants[1].cash > 10_000 - 10_000 * 50 / BP && w.merchants[2].cash < 30_000, "{:?}", w.merchants.iter().map(|m| m.cash).collect::<Vec<_>>());
+    }
+    /// The live testnet world on day 172 (decoded from `world_snapshot`): 2 players, one idle holding 405,064
+    /// pts, every stall under 11,000 cash (bids at 25% of asks), treasury 2. `refloat_stalls` is fully counted
+    /// (supply and target rise together), and afterwards the stall float keeps bids fair with nobody trading.
+    fn live_day_172() -> World {
+        let mut w = World::new(Config { seed: 3, players: 2, ..Config::default() });
+        w.players.get_mut("p000").unwrap().pts = 12_439;
+        w.players.get_mut("p001").unwrap().pts = 405_064;
+        for (m, c) in w.merchants.iter_mut().zip([8_927, 10_428, 4_698, 4_698]) { m.cash = c; }
+        w.treasury = 2;
+        w.day = 172;
+        w.target_supply = w.supply();
+        w
+    }
+    fn mean_bid_ask_bp(w: &World) -> u64 {
+        let r: Vec<u64> = (0..w.merchants.len()).flat_map(|mi| GOODS.iter().map(move |g| (mi, g.id))).map(|(mi, g)| { let q = w.quote(mi, g).unwrap(); q.bid * BP / q.ask }).collect();
+        r.iter().sum::<u64>() / r.len() as u64
+    }
+    fn days(w: &mut World, n: u32) { for _ in 0..3 * n { w.advance().unwrap(); } }
+    fn asks(w: &World) -> Vec<Pts> { (0..w.merchants.len()).flat_map(|mi| GOODS.iter().map(move |g| (mi, g.id))).map(|(mi, g)| w.quote(mi, g).unwrap().ask).collect() }
+    #[test]
+    fn live_day_172_refloat_then_float_keeps_bids_fair() {
+        let mut w = live_day_172();
+        assert!(mean_bid_ask_bp(&w) < 2_600, "the live failure: bids at a quarter of asks");
+        let (gap0, minted0) = (w.supply() as i64 - w.target_supply as i64, w.minted);
+        let added = w.refloat_stalls();
+        assert_eq!(added, 4 * 120_000 - (8_927 + 10_428 + 4_698 + 4_698));
+        assert_eq!((w.supply() as i64 - w.target_supply as i64, w.minted), (gap0, minted0 + added), "counted: drift unchanged");
+        assert_eq!(w.refloat_stalls(), 0, "idempotent");
+        let (mut moved_days, mut sum, mut n) = (0, 0, 0);
+        for d in 0..150 {
+            let a0 = asks(&w);
+            days(&mut w, 1);
+            moved_days += (asks(&w) != a0) as u32;
+            if d >= 30 {
+                // measured: mean 8,126, worst day 7,430 (healthy is 8,518); worst stall 39,476
+                assert!(mean_bid_ask_bp(&w) >= 7_000, "day {d}: bid/ask {}", mean_bid_ask_bp(&w));
+                assert!(w.merchants.iter().all(|m| m.cash >= 35_000), "day {d}: {:?}", w.merchants.iter().map(|m| m.cash).collect::<Vec<_>>());
+                sum += mean_bid_ask_bp(&w); n += 1;
+            }
+        }
+        assert!(sum / n >= 7_800, "mean bid/ask {}", sum / n);
+        assert!(moved_days >= 100, "prices keep moving: asks changed on {moved_days} of 150 days (measured 112)");
+        assert!(sim_drift_ok(&w));
+    }
+    fn sim_drift_ok(w: &World) -> bool { (w.supply() as i64 - w.target_supply as i64).abs() * BP as i64 <= 1_500 * w.target_supply as i64 }
+    /// Without the refloat the stall float cannot heal an already drained world (stalls sit under
+    /// RESTOCK_RESERVE, so nothing restocks and the treasury stays empty), which is why the helper exists.
+    #[test]
+    fn live_day_172_without_refloat_stays_stuck() {
+        let mut w = live_day_172();
+        let mut moved_days = 0;
+        for _ in 0..150 {
+            let a0 = asks(&w);
+            days(&mut w, 1);
+            moved_days += (asks(&w) != a0) as u32;
+            assert!(mean_bid_ask_bp(&w) < 3_500);
+        }
+        assert!(moved_days < 90, "only events move prices: {moved_days} of 150 days (measured 67)");
     }
     #[test]
     fn invest_matures() {
