@@ -34,7 +34,7 @@ You need nothing but the app. No account, no wallet and no email.
 
 1. Open the app (Android APK or web build) and tap **I am 18 or older. Start**. Choose **Live market on NEAR** (the
    on-chain game), then **Play as a guest**. Expect: the Soko tab with today's prices and a banner saying points are
-   for play only. (The other choice, **Play Soko Run**, is a quick 10-day offline run that never touches the chain.)
+   for play only. (The other choice, **Play Soko Run**, is a quick 5-day offline run that never touches the chain.)
 2. Tap a crop row. Expect: a "Why this price" explanation for the ask and bid.
 3. At midday, tap **Buy**, then **Sell**. Expect: the result at once, with profit or loss shown.
 4. Open **Duka** (your stall), **Chama**, **Deni** (credit) and **Ripoti** (report).
