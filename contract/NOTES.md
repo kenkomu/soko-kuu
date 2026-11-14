@@ -1,13 +1,29 @@
 # contract notes
 
+## Current state (checked 2026-11-14, read-only RPC)
+- LIVE on testnet: `sokokuu.sokokuu-ken.testnet`, code sha256 `60f88915...6ecd2` (base58 `7XXwp4LaAPREriPkDBtSRWQUnPuYFSux93h7wPgkWBZK`,
+  390,652 bytes) = `target/sokokuu_contract.opt.wasm`. This is the snapshot-view build WITHOUT goods tokens: only `pts` is a NEP-245 id,
+  `mt_transfer` panics `NON_TRANSFERABLE: pts cannot be transferred`, `mt_metadata_contract` is `MethodNotFound`, `mt_supply tomato` is `null`.
+  World: day 172+, 2 players. Account: 5.997 NEAR, storage_usage 395,158-395,177 bytes (about 3.95 NEAR locked), one full-access key.
+  Relayer key allowance 1.656 NEAR (was 1.8 on 2026-11-10).
+- NOT deployed: the goods build `target/sokokuu_contract.goods.wasm`, sha256 `766ea8c2...cbee1` (base58 `8yJybwzyYjRQ3wUukuMwwQQkiFKLbT8kH6cRCwqxXcXA`).
+  Runbook: DEPLOY_GOODS.md (Ken runs it). Rehearsed in the sandbox (old wasm, then goods over it, rollback, re-upgrade): state, clock and world_hash kept.
+- Reproducible: the goods build from git (commit `02b32aa` = HEAD for contract/ and econ/, rebuilt 2026-11-14 from a clean export: identical).
+  The live build is NOT reproducible from any commit (`d456e6e` builds `2be6b0bf...`; the 2026-11-10 working tree was never committed).
+- Tests 2026-11-14: committed source 46/46 unit tests pass (clean `git archive` export). In the working tree, 45/46: `buy_at_dawn_rejected` fails
+  because of "pending econ change A" (uncommitted econ edits drop the midday-only trading rule). Not a contract bug; contract logic and that test
+  are unchanged on purpose: both wasm builds enforce midday-only trading. If change A lands, the test, the wasm hash and the on-chain rules
+  must be updated together (new build, new deploy), or the runner's rules and the contract's rules will disagree (dawn/dusk trades: WRONG_PHASE on chain).
+- Mainnet: not planned for the hackathon; see MAINNET.md.
+
 ## First-hour check (done)
 `near-sdk-contract-tools` 4.0.0 compiles against near-sdk 5.30.1 (lockfile; Cargo.toml asks `5.18`+, features `legacy`).
 No pin or hand-written NEP-245 needed. We use its Nep245Controller (mint/burn/balance/supply) and a TransferHook
 (`DenyTransfer`) that panics, so no internal or external transfer can ever succeed. We did NOT use
 `#[derive(MultiToken)]`: it would expose real `mt_transfer`/resolve methods. Instead `mt_transfer` and
 `mt_batch_transfer` are hand-written and always panic `NON_TRANSFERABLE`; standard views `mt_balance_of`,
-`mt_batch_balance_of`, `mt_supply` are exposed. Also exposed: `mt_token`, `mt_batch_supply`, `mt_metadata`, `mt_metadata_base_by_token_id`, `mt_metadata_contract`. NEP-245 mint/burn events come from the controller.
-Token ids: `pts` plus one per good (`tomato maize sukuma onion fish charcoal` = econ good ids). Stakes stay in the econ `World`.
+`mt_batch_balance_of`, `mt_supply` are exposed. Goods build only (not live yet): also `mt_token`, `mt_batch_supply`, `mt_metadata`, `mt_metadata_base_by_token_id`, `mt_metadata_contract`. NEP-245 mint/burn events come from the controller.
+Token ids: `pts`; the goods build adds one per good (`tomato maize sukuma onion fish charcoal` = econ good ids). Stakes stay in the econ `World`.
 
 ## Design
 - `act` is relayer-only (predecessor == relayer), then verifies ed25519 over the exact signed string, expiry
@@ -27,9 +43,9 @@ Path dep `../econ` (feature `borsh`). Uses `World::new/apply/advance/supply/merc
 Expect gas to grow with players; measure before deploy.
 
 ## Not done / risks
-- Not deployed to testnet. Wasm builds and runs in the local sandbox (see below); `overflow-checks` on in release.
+- Deployed to testnet since 2026-11-10 (see Current state). `overflow-checks` on in release.
 - Events are plain log lines, not NEP-297 JSON.
-- Goods mirror PLAYER-held stock only; merchant stock stays in the World (not tokenised). NOT yet deployed (see Goods tokens).
+- Goods mirror PLAYER-held stock only; merchant stock stays in the World (not tokenised). Goods tokens are NOT deployed (see Goods tokens).
 
 ## Build (IMPORTANT)
 Build the wasm with `RUSTFLAGS="--cfg near" cargo build --release --target wasm32-unknown-unknown` (or `cargo near build`).
@@ -59,27 +75,27 @@ Whole `World` is one borsh blob, so cost grows with players. Players = registere
 `act` measured with chama_create by a new player (registration included); a `buy` by an existing player is about 3.9 at 1 player.
 Even at the 300-player cap everything is under 8% of the per-call limit.
 
-## Deployed (testnet, 2026-11-10)
+## First deploy (testnet, 2026-11-10; code superseded the same day by the reset below)
 Contract `sokokuu.sokokuu-ken.testnet` (code sha256 ed98a459bf9016e6..., 385 KB), owner `sokokuu-ken.testnet`, relayer
 `relayer.sokokuu-ken.testnet` (only key: function-call on the contract, methods act/advance_clock/rebind_key; bootstrap
 full-access key deleted). Chain id `testnet`, seed 1. Live check: advance_clock 2.4 Tgas (0.00021 NEAR), first buy by a new
 guest key via the relayer 4.3 Tgas (0.0004 NEAR); the signature came from near-api-js.
 Gotcha: sign expiry must be within 2 min of chain time; compute `expires_ms` in real milliseconds.
 
-## World snapshot views (added 2026-11-10, NOT yet deployed)
+## World snapshot views (added 2026-11-10; deployed by the reset below, live)
 `world_snapshot()` (base64 Borsh of econ::World) and `world_hash()` (sha256[..16] hex). Pure views. Tested in the sandbox:
 decodes with the econ crate, re-encodes to identical bytes, matches clock, supply and per-player pts, and the hash changes with state.
 Size (JSON response): 2.1 KB at 1 player, 19.9 KB at 50, 111 KB at 300. Cost when run as a transaction (upper bound for view gas, limit 300 Tgas):
 snapshot 2.1 / 5.5 / 23.6 Tgas, hash 2.1 / 4.5 / 17.4 Tgas at 1 / 49 / 297 players; both fit the view limit.
 New wasm (390,652 bytes, MVP-only): sha256 60f889152edbf6acf55c924bae57cbb98d6a0be4d6ee29376f337dc77486ecd2.
-Currently deployed wasm is the older ed98a459bf9016e6 build (385 KB). All 4 sandbox tests and 42 unit tests pass on the new file.
+(At the time the deployed wasm was the older ed98a459bf9016e6 build; the reset replaced it.) All 4 sandbox tests and 42 unit tests pass on the new file.
 
 ## Reset to clean world (2026-11-10) and current deployment
 `reset.sh` deleted and recreated `sokokuu.sokokuu-ken.testnet`, deployed the snapshot-view wasm (on-chain code sha256
 60f889152edbf6acf55c924bae57cbb98d6a0be4d6ee29376f337dc77486ecd2), `new(testnet, seed 1, relayer.sokokuu-ken.testnet)`.
 World: day 0, dawn, 0 players; `world_hash` 9ffd75fef7e625cc0088f9aca605eef0 (decoded snapshot, 1,026 bytes, matches).
 
-## Goods tokens (2026-11-11, NOT deployed)
+## Goods tokens (2026-11-11, NOT deployed as of 2026-11-14; runbook DEPLOY_GOODS.md)
 One NEP-245 id per econ good, minted/burned to equal each player's `World` stock. Goods tokens are created lazily on first
 mint, so no `new` call and no state-layout change: it is a plain code upgrade (DEPLOY.md UPGRADE).
 - `act`: after the action the actor's pts and goods are synced (buy mints, sell burns, haggle/credit/repay follow the stock).
@@ -96,8 +112,15 @@ mint, so no `new` call and no state-layout change: it is a plain code upgrade (D
 - Views: `mt_token`, `mt_batch_supply` (null for unknown ids, `"0"` for a good nobody holds), `mt_metadata` (= `mt_metadata_base_by_token_id`:
   title, description, transferable=false), `mt_metadata_contract`.
 - New wasm: sha256 `766ea8c248cd779af5bdc438b0ca1bd1f30da1fde8c8e2b479dec78ac8dbcee1`, 411,432 bytes (target/sokokuu_contract.goods.wasm).
-  Hash was built with the recipe in JUDGES.md, but with binaryen 130 from this machine's npm; not compared to a second build yet.
+  Hash was built with the recipe in JUDGES.md (binaryen 130 from npm). Second build on 2026-11-14 from a clean `git archive HEAD` export
+  in another directory (with the path remap): byte-identical.
 - Tests: 46 unit (42 + 4 new) and 6 sandbox (adds goods mirror/events/non-transfer and a holders gas test) pass.
 - Gas (sandbox): act 4.8/7.8/24.3 Tgas at 1/49/297 players (was 3.9/6.9/23.3); advance_clock 2.7/6.1/24.8; with 49 players all holding
   goods and all changing, advance_clock peaks at 40.5 Tgas, with 100 holders 42.9 (capped by the event budget).
 - `sandbox/` needs `SIGNER_DIR` with `sign.mjs`; it was rebuilt this session outside the repo (seed 1..32 -> 9C6h..., matches the app key).
+- Panic text on this build: `NON_TRANSFERABLE: pts and goods cannot be transferred` (the live build says `pts cannot be transferred`).
+- Upgrade rehearsal (2026-11-14, scratch near-workspaces test, not in the repo; Rust-signed throwaway keys): deploy of the goods wasm over the
+  old wasm's state by the contract account: 30.0 Tgas (on chain storage grows by the file size difference, +20,780 bytes), `clock`/`world_hash`/`supply`/`pts_of`/`nonce_of` unchanged; new views
+  answer; pre-upgrade goods minted at the holder's next act (5.7 Tgas); rollback keeps state (goods balances freeze), re-upgrade heals them.
+- Storage per player on the goods build (same rehearsal): 674 bytes for a new player holding one good (world entry, nonce, id, pts and one
+  goods balance), plus 174 bytes per extra good held; worst case 6 goods = about 1,544 bytes (0.015 NEAR). At the 300 cap about 463 KB.

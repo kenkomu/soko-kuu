@@ -1,6 +1,7 @@
 # Deploying to testnet (near-cli-rs 0.31.1)
 
-Not yet run: waits for the user's approval. Testnet only, no real money. Never put keys in the repo.
+Run on 2026-11-10 (deploy, then reset). Live state and the pending goods upgrade: NOTES.md "Current state" and DEPLOY_GOODS.md.
+Testnet only, no real money. Never put keys in the repo. Mainnet: MAINNET.md (docs only).
 
 ## Cost (NEAR, testnet)
 Storage staking is about 1 NEAR per 100 KB, and the optimised wasm is 385 KB, so about 3.8 NEAR stays locked in the contract
@@ -37,6 +38,7 @@ wasm-opt -Oz --enable-bulk-memory --enable-sign-ext --enable-nontrapping-float-t
 The script has been run with `DRY_RUN=2` (every command's syntax accepted by near-cli-rs 0.31.1) but never for real.
 
 ## UPGRADE (redeploy new code to the existing account; state is kept)
+The goods upgrade has its own exact runbook with post-checks and rollback: DEPLOY_GOODS.md.
 Safe only when the stored struct layout is unchanged (the 2026-11-10 upgrade only adds views `world_snapshot` and
 `world_hash`). Never call `new` again. Needs no extra funds: the new wasm is a few KB larger (about 0.05 NEAR more storage).
 1. Rebuild with the same MVP flags (Build section above) and check the hash against NOTES.md.
